@@ -1,0 +1,34 @@
+/* HE SORTS - 전체 관리자 페이지 적용 스타일 */
+/* 3뎁스 들여쓰기 및 커스텀 항목 시각화 */
+
+#adminmenu li.he-sorts-depth-3 {
+	position: relative;
+}
+
+#adminmenu li.he-sorts-depth-3 > a {
+	padding-left: 42px !important;
+	font-size: 12px;
+	color: #a7aaad;
+	position: relative;
+}
+
+#adminmenu li.he-sorts-depth-3 > a::before {
+	content: '';
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	border-left: 1px solid #50575e;
+	border-bottom: 1px solid #50575e;
+	margin-right: 6px;
+	margin-left: -14px;
+	vertical-align: middle;
+	opacity: 0.6;
+}
+
+#adminmenu li.he-sorts-depth-3 > a:hover {
+	color: #fff;
+}
+
+#adminmenu li.he-sorts-custom-item > a {
+	font-style: normal;
+}
