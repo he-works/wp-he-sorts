@@ -108,6 +108,7 @@ class HE_Sorts_Admin {
 	public function add_action_links( $links ) {
 		$custom = array(
 			'settings' => '<a href="' . esc_url( admin_url( 'admin.php?page=he-sorts' ) ) . '">설정</a>',
+			'donate'   => '<a href="https://github.com/sponsors/he-works" target="_blank" rel="noopener noreferrer" style="color:#db61a2; font-weight:600;">♥ 기부</a>',
 		);
 		return array_merge( $custom, $links );
 	}
