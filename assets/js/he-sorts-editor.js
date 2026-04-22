@@ -108,11 +108,30 @@
 				isDragging        = true;
 				dragItemOrigDepth = parseInt(evt.item.dataset.depth || '1', 10);
 				dragTargetDepth   = dragItemOrigDepth;
+				dragStartX        = evt.originalEvent ? evt.originalEvent.clientX : 0;
 				// 드래그 중에는 접힌 자식 항목도 모두 표시
 				document.querySelectorAll('#tree-root > .he-sorts-item').forEach(function (el) {
 					el.style.removeProperty('display');
 				});
 				showDepthGuide();
+			},
+
+			onMove: function (evt) {
+				if (evt.originalEvent) {
+					var newDepth = calcDepthFromDelta(evt.originalEvent.clientX);
+					dragTargetDepth = newDepth;
+					updateGuideActive(newDepth);
+					if (!dragDepthBadge) {
+						dragDepthBadge = document.createElement('div');
+						dragDepthBadge.className = 'hs-drag-badge';
+						document.body.appendChild(dragDepthBadge);
+					}
+					dragDepthBadge.textContent = newDepth + '뎁스';
+					dragDepthBadge.style.left  = (evt.originalEvent.clientX + 14) + 'px';
+					dragDepthBadge.style.top   = (evt.originalEvent.clientY - 28) + 'px';
+					dragDepthBadge.style.display = '';
+					dragDepthBadge.className = 'hs-drag-badge hs-drag-badge--d' + newDepth;
+				}
 			},
 
 			onEnd: function (evt) {
@@ -244,18 +263,21 @@
 	/**
 	 * 항목의 모든 하위 항목(재귀)을 DOM 상에서 부모 바로 다음으로 이동시킵니다.
 	 * 드래그로 항목이 다른 위치로 이동했을 때 자식들을 따라오게 합니다.
+	 *
+	 * ■ 수정: snapshot 을 재사용하면 DOM 이동 후 순서가 어긋나므로
+	 *         매 재귀 단계에서 live DOM 기준으로 직계 자식을 찾습니다.
+	 *         단, querySelectorAll 결과는 재귀 진입 전에 배열로 고정합니다.
 	 */
 	function relocateDescendants(parentEl) {
-		var root      = document.getElementById('tree-root');
-		// 변경 전 스냅샷 (DOM 조작 중 querySelectorAll 이 흔들리지 않도록)
-		var snapshot  = Array.from(document.querySelectorAll('#tree-root > .he-sorts-item'));
+		var root = document.getElementById('tree-root');
 
 		function insertAfter(el, ref) {
 			root.insertBefore(el, ref.nextSibling);
 		}
 
 		function collect(pId, afterEl) {
-			var kids = snapshot.filter(function (el) {
+			// 현재 DOM 상태에서 직계 자식만 찾아 배열로 고정
+			var kids = Array.from(root.querySelectorAll(':scope > .he-sorts-item')).filter(function (el) {
 				return (el.dataset.parentId || '') === pId;
 			});
 			kids.forEach(function (kid) {
@@ -482,36 +504,6 @@
 			}
 		});
 
-		// ── 드래그 depth 트래킹 ────────────────────────────────────
-		// 드래그 핸들 mousedown → 시작 X 기록
-		document.addEventListener('mousedown', function (e) {
-			if (e.target.closest('.he-sorts-drag-handle')) {
-				dragStartX = e.clientX;
-			}
-		});
-
-		// 드래그 중 마우스 이동 → depth 계산 + 배지/가이드 갱신
-		document.addEventListener('mousemove', function (e) {
-			if (!isDragging) return;
-
-			var newDepth = calcDepthFromDelta(e.clientX);
-			dragTargetDepth = newDepth;
-
-			// 배지 생성 및 위치
-			if (!dragDepthBadge) {
-				dragDepthBadge = document.createElement('div');
-				dragDepthBadge.className = 'hs-drag-badge';
-				document.body.appendChild(dragDepthBadge);
-			}
-			dragDepthBadge.textContent = newDepth + '뎁스';
-			dragDepthBadge.style.left  = (e.clientX + 14) + 'px';
-			dragDepthBadge.style.top   = (e.clientY - 28) + 'px';
-			dragDepthBadge.style.display = '';
-			dragDepthBadge.className = 'hs-drag-badge hs-drag-badge--d' + newDepth;
-
-			// 가이드 활성 구역 갱신
-			updateGuideActive(newDepth);
-		});
 	}
 
 	// ── 항목 선택 ────────────────────────────────────────────────
@@ -740,15 +732,18 @@
 		var items = Array.from(document.querySelectorAll('#tree-root > .he-sorts-item'));
 		return items.map(function (el) {
 			var depth    = parseInt(el.dataset.depth || '1', 10);
-			var parentId = el.dataset.parentId || null;
+			// data-parent-id 가 빈 문자열이면 null 로 변환 (PHP 쪽에서 올바르게 처리)
+			var parentId = (el.dataset.parentId && el.dataset.parentId !== '') ? el.dataset.parentId : null;
+			// data-wp-slug 가 빈 문자열이면 null (커스텀·구분선 항목)
+			var wpSlug = (el.dataset.wpSlug && el.dataset.wpSlug !== '') ? el.dataset.wpSlug : null;
 
 			var data = {
-				id:        el.dataset.id       || '',
-				type:      el.dataset.type     || 'original',
+				id:        el.dataset.id    || '',
+				type:      el.dataset.type  || 'original',
 				depth:     depth,
-				wp_slug:   el.dataset.wpSlug   || null,
-				parent_id: parentId || null,
-				label:     el.dataset.label    || '',
+				wp_slug:   wpSlug,
+				parent_id: parentId,
+				label:     el.dataset.label || '',
 				hidden:    el.dataset.hidden === 'true',
 			};
 
@@ -759,7 +754,6 @@
 				data.target     = el.dataset.target     || '_self';
 			}
 
-			if (data.type === 'separator') data.type = 'separator';
 			return data;
 		});
 	}

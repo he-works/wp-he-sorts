@@ -239,17 +239,20 @@ function he_sorts_flatten_to_ordered( $items ) {
 
 	// depth-first 순회 → flat ordered list
 	$ordered = array();
-	he_sorts_dfs( $roots, $children_of, $map, $ordered );
+	$visited = array();
+	he_sorts_dfs( $roots, $children_of, $map, $ordered, $visited );
 
 	return $ordered;
 }
 
-function he_sorts_dfs( $ids, $children_of, $map, &$ordered ) {
+function he_sorts_dfs( $ids, $children_of, $map, &$ordered, &$visited = array() ) {
 	foreach ( $ids as $id ) {
 		if ( ! isset( $map[ $id ] ) ) continue;
+		if ( isset( $visited[ $id ] ) ) continue; // 순환 참조 방지
+		$visited[ $id ] = true;
 		$ordered[] = $map[ $id ];
 		if ( ! empty( $children_of[ $id ] ) ) {
-			he_sorts_dfs( $children_of[ $id ], $children_of, $map, $ordered );
+			he_sorts_dfs( $children_of[ $id ], $children_of, $map, $ordered, $visited );
 		}
 	}
 }

@@ -14,6 +14,7 @@ class HE_Sorts_Admin {
 	public function register_hooks() {
 		add_action( 'admin_menu', array( $this, 'register_menus' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		add_action( 'admin_head', array( $this, 'inject_custom_target_script' ) );
 
 		add_action( 'wp_ajax_he_sorts_get_menu',        array( $this, 'ajax_get_menu' ) );
 		add_action( 'wp_ajax_he_sorts_save_config',     array( $this, 'ajax_save_config' ) );
@@ -113,6 +114,39 @@ class HE_Sorts_Admin {
 		return array_merge( $custom, $links );
 	}
 
+	public function inject_custom_target_script() {
+		$config = get_option( 'he_sorts_config', array() );
+		$items  = $config['items'] ?? array();
+
+		$blank_urls = array();
+		foreach ( $items as $item ) {
+			if (
+				( $item['type'] ?? '' ) === 'custom' &&
+				( $item['target'] ?? '_self' ) === '_blank' &&
+				! empty( $item['url'] )
+			) {
+				$blank_urls[] = esc_url( $item['url'] );
+			}
+		}
+
+		if ( empty( $blank_urls ) ) return;
+
+		$json = wp_json_encode( $blank_urls );
+		echo "<script>
+(function(){
+    var urls = " . $json . ";
+    document.addEventListener('DOMContentLoaded', function(){
+        urls.forEach(function(url){
+            document.querySelectorAll('#adminmenu a[href=\"' + url + '\"]').forEach(function(a){
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+            });
+        });
+    });
+}());
+</script>\n";
+	}
+
 	// ── AJAX Handlers ────────────────────────────────────────────────────
 
 	public function ajax_get_menu() {
@@ -165,7 +199,13 @@ class HE_Sorts_Admin {
 
 		$label      = sanitize_text_field( $_POST['label'] ?? '새 메뉴' );
 		$url        = esc_url_raw( $_POST['url'] ?? '#' );
-		$icon       = sanitize_html_class( $_POST['icon'] ?? 'dashicons-admin-generic' );
+		$raw_icon   = $_POST['icon'] ?? 'dashicons-admin-generic';
+		if ( strpos( $raw_icon, 'http' ) === 0 ) {
+			$icon = esc_url_raw( $raw_icon );
+		} else {
+			$icon = sanitize_html_class( $raw_icon );
+			if ( empty( $icon ) ) $icon = 'dashicons-admin-generic';
+		}
 		$capability = sanitize_key( $_POST['capability'] ?? 'read' );
 		$target     = in_array( $_POST['target'] ?? '', array( '_self', '_blank' ), true ) ? $_POST['target'] : '_self';
 		$depth      = intval( $_POST['depth'] ?? 1 );
@@ -221,7 +261,15 @@ class HE_Sorts_Admin {
 
 			if ( $clean['type'] === 'custom' ) {
 				$clean['url']        = esc_url_raw( $item['url'] ?? '#' );
-				$clean['icon']       = sanitize_html_class( $item['icon'] ?? 'dashicons-admin-generic' );
+				$raw_icon            = $item['icon'] ?? 'dashicons-admin-generic';
+				if ( strpos( $raw_icon, 'http' ) === 0 ) {
+					$clean['icon'] = esc_url_raw( $raw_icon );
+				} else {
+					$clean['icon'] = sanitize_html_class( $raw_icon );
+					if ( empty( $clean['icon'] ) ) {
+						$clean['icon'] = 'dashicons-admin-generic';
+					}
+				}
 				$clean['capability'] = sanitize_key( $item['capability'] ?? 'read' );
 				$clean['target']     = in_array( $item['target'] ?? '', array( '_self', '_blank' ), true ) ? $item['target'] : '_self';
 			}

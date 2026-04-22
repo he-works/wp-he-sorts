@@ -70,7 +70,7 @@ class HE_Sorts_Core {
 
 			// 구분선
 			if ( $type === 'separator' ) {
-				$new_menu[ $pos ] = array( '', 'read', 'separator-he-' . $pos, '', 'wp-menu-separator' );
+				$new_menu[ $pos ] = array( '', 'read', 'separator-he-sorts-' . $pos, '', 'wp-menu-separator' );
 				$pos += 10;
 				continue;
 			}
@@ -114,6 +114,9 @@ class HE_Sorts_Core {
 	 *      depth 체크를 제거해야 자식을 올바르게 수집할 수 있습니다.)
 	 *   - 원래 $menu 에 있던 항목(id 접두사 "menu::")이 sub 로 이동된 경우,
 	 *     $sub_index 대신 $menu_index 에서 엔트리를 가져와 변환합니다.
+	 *   - depth-3 항목도 동일한 $sub_key 아래 추가합니다.
+	 *     WordPress submenu 는 1뎁스(최상위 slug) 키 하나만 지원하기 때문에,
+	 *     depth-3 항목을 별도 키로 넣으면 메뉴가 렌더링되지 않습니다.
 	 */
 	private function collect_children( $all_items, $parent_id, $sub_key, $menu_index, $sub_index, &$new_sub, $depth ) {
 		foreach ( $all_items as $item ) {
@@ -147,13 +150,15 @@ class HE_Sorts_Core {
 			}
 
 			// 3뎁스 이상은 CSS 들여쓰기 클래스 부여
+			// WordPress $submenu 는 최상위 slug(sub_key) 하나의 키만 지원하므로
+			// depth-2, depth-3 모두 동일한 $sub_key 아래에 추가해야 합니다.
 			if ( $depth >= 3 ) {
 				$entry[4] = trim( ( $entry[4] ?? '' ) . ' he-sorts-depth-3' );
 			}
 
 			$new_sub[ $sub_key ][] = $entry;
 
-			// 최대 3뎁스까지만 재귀
+			// 최대 3뎁스까지만 재귀 (depth-3 자식 → 3뎁스 CSS 처리, 동일 sub_key 사용)
 			if ( $depth < 3 ) {
 				$this->collect_children( $all_items, $item_id, $sub_key, $menu_index, $sub_index, $new_sub, $depth + 1 );
 			}
@@ -302,13 +307,13 @@ class HE_Sorts_Core {
 			return $sub_index[ $orig_parent ][ $slug ];
 		}
 
-		// ② 원본 부모의 submenu 가 없으면(메뉴를 다른 부모로 이동) 전체 검색
-		//    단, orig_parent 가 명확히 있는 경우에는 전체 검색 안 함 (오탐 방지)
-		if ( empty( $orig_parent ) ) {
-			foreach ( $sub_index as $entries ) {
-				if ( ! empty( $entries[ $slug ] ) ) {
-					return $entries[ $slug ];
-				}
+		// ② 원본 부모에 없으면 전체 $sub_index 에서 slug 로 탐색합니다.
+		//    사용자가 서브메뉴를 다른 상위 항목 아래로 이동시킨 경우에 해당합니다.
+		//    단, slug 가 여러 부모에 중복 등록된 경우를 대비해 최초 일치 항목만 반환합니다.
+		foreach ( $sub_index as $parent_slug => $entries ) {
+			if ( $parent_slug === $orig_parent ) continue; // ①에서 이미 확인
+			if ( ! empty( $entries[ $slug ] ) ) {
+				return $entries[ $slug ];
 			}
 		}
 
