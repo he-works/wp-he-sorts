@@ -605,6 +605,56 @@
 
 .required { color: var(--hs-danger); }
 
+/* ── 드래그 Depth 배지 ───────────────────────────────────── */
+.hs-drag-badge {
+	position: fixed;
+	z-index: 99999;
+	padding: 3px 10px;
+	border-radius: 10px;
+	font-size: 11px;
+	font-weight: 700;
+	pointer-events: none;
+	box-shadow: 0 2px 8px rgba(0,0,0,.25);
+	white-space: nowrap;
+	transition: background 100ms;
+}
+.hs-drag-badge--d1 { background: #2563eb; color: #fff; }
+.hs-drag-badge--d2 { background: #7c3aed; color: #fff; }
+.hs-drag-badge--d3 { background: #0891b2; color: #fff; }
+
+/* ── 드래그 중 Depth 구역 가이드 ─────────────────────────── */
+.hs-depth-guide {
+	display: flex;
+	position: sticky;
+	top: 0;
+	z-index: 20;
+	height: 26px;
+	border-bottom: 1px solid var(--hs-gray-200);
+	user-select: none;
+	pointer-events: none;
+	overflow: hidden;
+}
+.hs-dg {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 3px;
+	font-size: 10px;
+	font-weight: 700;
+	border-right: 1px dashed var(--hs-gray-200);
+	transition: background 120ms;
+}
+.hs-dg:last-child { border-right: none; }
+.hs-dg em.dashicons { font-size: 10px; width: 10px; height: 10px; line-height: 1; font-style: normal; }
+
+.hs-dg-d1          { color: #2563eb; background: rgba(37,99,235,.04); }
+.hs-dg-d2          { color: #7c3aed; background: rgba(124,58,237,.04); }
+.hs-dg-d3          { color: #0891b2; background: rgba(8,145,178,.04); }
+.hs-dg-d1.is-active { background: rgba(37,99,235,.14); }
+.hs-dg-d2.is-active { background: rgba(124,58,237,.14); }
+.hs-dg-d3.is-active { background: rgba(8,145,178,.14); }
+
 /* ── 반응형 ─────────────────────────────────────────────── */
 @media (max-width: 960px) {
 	.he-sorts-body {

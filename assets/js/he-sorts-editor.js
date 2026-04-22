@@ -71,9 +71,17 @@
 	];
 
 	// ── 픽커 상태 ────────────────────────────────────────────────
-	var pickerTarget  = null;   // input id
-	var pickerPreview = null;   // preview span id
+	var pickerTarget  = null;
+	var pickerPreview = null;
 	var pickerBuilt   = false;
+
+	// ── 드래그 depth 상태 ─────────────────────────────────────────
+	var isDragging          = false;
+	var dragTargetDepth     = 1;
+	var dragItemOrigDepth   = 1;
+	var dragStartX          = 0;
+	var dragDepthBadge      = null;
+	var dragDepthGuide      = null;
 
 	// ── 초기화 ──────────────────────────────────────────────────
 	function init() {
@@ -81,27 +89,85 @@
 		bindEvents();
 	}
 
-	// ── SortableJS (단일 플랫 리스트) ────────────────────────────
+	// ── SortableJS (단일 플랫 리스트 + depth 드래그) ──────────────
 	function initSortable() {
 		if (sortable) sortable.destroy();
 		var root = document.getElementById('tree-root');
 		if (!root) return;
 
 		sortable = Sortable.create(root, {
-			handle:      '.he-sorts-drag-handle',
-			animation:   150,
-			ghostClass:  'sortable-ghost',
-			dragClass:   'sortable-drag',
-			onEnd: function () {
-				// 드래그 후 parent_id 를 인접 항목 기준으로 재계산
+			handle:     '.he-sorts-drag-handle',
+			animation:  120,
+			ghostClass: 'sortable-ghost',
+			dragClass:  'sortable-drag',
+
+			onStart: function (evt) {
+				isDragging        = true;
+				dragItemOrigDepth = parseInt(evt.item.dataset.depth || '1', 10);
+				dragTargetDepth   = dragItemOrigDepth;
+				showDepthGuide();
+			},
+
+			onEnd: function (evt) {
+				isDragging = false;
+				hideDepthGuide();
+
+				// 드래그한 항목에 새 depth 적용
+				var el = evt.item;
+				var prevDepth = parseInt(el.dataset.depth || '1', 10);
+				if (prevDepth !== dragTargetDepth) {
+					el.dataset.depth = String(dragTargetDepth);
+					el.className = el.className.replace(/\bhs-d\d\b/, 'hs-d' + dragTargetDepth);
+					updateDepthButtons(el, dragTargetDepth);
+				}
+
 				recalculateParents();
 			},
 		});
 	}
 
 	/**
+	 * 마우스 X 이동량(dragStartX 기준)을 24px 단위로 환산해 depth 를 계산합니다.
+	 * 오른쪽으로 24px = depth +1, 왼쪽으로 24px = depth -1
+	 */
+	function calcDepthFromDelta(clientX) {
+		var delta     = clientX - dragStartX;
+		var depthDelta = Math.round(delta / 24);
+		return Math.max(1, Math.min(3, dragItemOrigDepth + depthDelta));
+	}
+
+	// ── 드래그 중 뎁스 가이드 ─────────────────────────────────────
+	function showDepthGuide() {
+		if (!dragDepthGuide) {
+			dragDepthGuide = document.createElement('div');
+			dragDepthGuide.className = 'hs-depth-guide';
+			dragDepthGuide.innerHTML =
+				'<span class="hs-dg hs-dg-d1"><em class="dashicons dashicons-arrow-left-alt2"></em>1뎁스</span>' +
+				'<span class="hs-dg hs-dg-d2">2뎁스</span>' +
+				'<span class="hs-dg hs-dg-d3">3뎁스<em class="dashicons dashicons-arrow-right-alt2"></em></span>';
+			var tree = document.querySelector('.he-sorts-tree');
+			if (tree) tree.insertBefore(dragDepthGuide, tree.firstChild);
+		}
+		dragDepthGuide.style.display = '';
+		updateGuideActive(dragTargetDepth);
+	}
+
+	function hideDepthGuide() {
+		if (dragDepthGuide) dragDepthGuide.style.display = 'none';
+		if (dragDepthBadge) dragDepthBadge.style.display = 'none';
+	}
+
+	function updateGuideActive(depth) {
+		if (!dragDepthGuide) return;
+		dragDepthGuide.querySelectorAll('.hs-dg').forEach(function (z, i) {
+			z.classList.toggle('is-active', i + 1 === depth);
+		});
+	}
+
+	/**
 	 * flat list 에서 각 항목의 parent_id 를 재계산합니다.
 	 * 규칙: 자신보다 depth 가 1 작은 직전 항목이 부모.
+	 * 부모를 찾지 못하면 depth 를 강제 감소합니다.
 	 */
 	function recalculateParents() {
 		var items = Array.from(document.querySelectorAll('#tree-root > .he-sorts-item'));
@@ -111,19 +177,21 @@
 				el.dataset.parentId = '';
 				return;
 			}
-			// 역방향으로 depth-1 작은 항목 검색
+			// 역방향으로 depth-1 인 선행 항목 탐색
 			for (var i = idx - 1; i >= 0; i--) {
-				var prev = items[i];
+				var prev      = items[i];
 				var prevDepth = parseInt(prev.dataset.depth || '1', 10);
 				if (prevDepth === depth - 1) {
 					el.dataset.parentId = prev.dataset.id;
 					return;
 				}
-				if (prevDepth < depth - 1) break; // 더 올라갈 필요 없음
+				if (prevDepth < depth - 1) break;
 			}
-			// 부모를 못 찾으면 depth 강제 조정
-			el.dataset.depth = String(depth - 1);
-			el.className = el.className.replace(/\bhs-d\d\b/, 'hs-d' + (depth - 1));
+			// 유효한 부모 없음 → depth 줄이기
+			var newD = depth - 1;
+			el.dataset.depth = String(newD);
+			el.className = el.className.replace(/\bhs-d\d\b/, 'hs-d' + newD);
+			updateDepthButtons(el, newD);
 			el.dataset.parentId = '';
 		});
 	}
@@ -210,6 +278,37 @@
 					closeModal();
 				}
 			}
+		});
+
+		// ── 드래그 depth 트래킹 ────────────────────────────────────
+		// 드래그 핸들 mousedown → 시작 X 기록
+		document.addEventListener('mousedown', function (e) {
+			if (e.target.closest('.he-sorts-drag-handle')) {
+				dragStartX = e.clientX;
+			}
+		});
+
+		// 드래그 중 마우스 이동 → depth 계산 + 배지/가이드 갱신
+		document.addEventListener('mousemove', function (e) {
+			if (!isDragging) return;
+
+			var newDepth = calcDepthFromDelta(e.clientX);
+			dragTargetDepth = newDepth;
+
+			// 배지 생성 및 위치
+			if (!dragDepthBadge) {
+				dragDepthBadge = document.createElement('div');
+				dragDepthBadge.className = 'hs-drag-badge';
+				document.body.appendChild(dragDepthBadge);
+			}
+			dragDepthBadge.textContent = newDepth + '뎁스';
+			dragDepthBadge.style.left  = (e.clientX + 14) + 'px';
+			dragDepthBadge.style.top   = (e.clientY - 28) + 'px';
+			dragDepthBadge.style.display = '';
+			dragDepthBadge.className = 'hs-drag-badge hs-drag-badge--d' + newDepth;
+
+			// 가이드 활성 구역 갱신
+			updateGuideActive(newDepth);
 		});
 	}
 
