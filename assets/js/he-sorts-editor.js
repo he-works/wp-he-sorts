@@ -119,12 +119,17 @@
 				isDragging = false;
 				hideDepthGuide();
 
-				var el = evt.item;
+				var el        = evt.item;
 				var prevDepth = parseInt(el.dataset.depth || '1', 10);
-				if (prevDepth !== dragTargetDepth) {
+				var delta     = dragTargetDepth - prevDepth;
+
+				if (delta !== 0) {
 					el.dataset.depth = String(dragTargetDepth);
 					el.className = el.className.replace(/\bhs-d\d\b/, 'hs-d' + dragTargetDepth);
 					updateDepthButtons(el, dragTargetDepth);
+					// 하위 항목들도 depth 조정 후 DOM 위치 이동
+					adjustDescendantsDepth(el, delta);
+					relocateDescendants(el);
 				}
 
 				recalculateParents();
@@ -182,13 +187,25 @@
 	 */
 	function recalculateParents() {
 		var items = Array.from(document.querySelectorAll('#tree-root > .he-sorts-item'));
+		// id → el 맵
+		var idMap = {};
+		items.forEach(function (el) { idMap[el.dataset.id] = el; });
+
 		items.forEach(function (el, idx) {
 			var depth = parseInt(el.dataset.depth || '1', 10);
 			if (depth === 1) {
 				el.dataset.parentId = '';
 				return;
 			}
-			// 역방향으로 depth-1 인 선행 항목 탐색
+
+			// ▶ 기존 parent_id 가 여전히 유효한지 먼저 확인 (불필요한 재배정 방지)
+			var curParentId = el.dataset.parentId || '';
+			if (curParentId && idMap[curParentId]) {
+				var pDepth = parseInt(idMap[curParentId].dataset.depth || '1', 10);
+				if (pDepth === depth - 1) return; // 유효 → 그대로
+			}
+
+			// 유효하지 않으면 역방향으로 depth-1 인 선행 항목 탐색
 			for (var i = idx - 1; i >= 0; i--) {
 				var prev      = items[i];
 				var prevDepth = parseInt(prev.dataset.depth || '1', 10);
@@ -205,6 +222,50 @@
 			updateDepthButtons(el, newD);
 			el.dataset.parentId = '';
 		});
+	}
+
+	/**
+	 * 항목의 모든 하위 항목(재귀)의 depth 를 delta 만큼 조정합니다.
+	 * parent_id 관계는 유지됩니다.
+	 */
+	function adjustDescendantsDepth(parentEl, delta) {
+		var parentId = parentEl.dataset.id;
+		Array.from(document.querySelectorAll('#tree-root > .he-sorts-item')).forEach(function (el) {
+			if ((el.dataset.parentId || '') !== parentId) return;
+			var d    = parseInt(el.dataset.depth || '1', 10);
+			var newD = Math.max(1, Math.min(3, d + delta));
+			el.dataset.depth = String(newD);
+			el.className     = el.className.replace(/\bhs-d\d\b/, 'hs-d' + newD);
+			updateDepthButtons(el, newD);
+			adjustDescendantsDepth(el, delta); // 재귀
+		});
+	}
+
+	/**
+	 * 항목의 모든 하위 항목(재귀)을 DOM 상에서 부모 바로 다음으로 이동시킵니다.
+	 * 드래그로 항목이 다른 위치로 이동했을 때 자식들을 따라오게 합니다.
+	 */
+	function relocateDescendants(parentEl) {
+		var root      = document.getElementById('tree-root');
+		// 변경 전 스냅샷 (DOM 조작 중 querySelectorAll 이 흔들리지 않도록)
+		var snapshot  = Array.from(document.querySelectorAll('#tree-root > .he-sorts-item'));
+
+		function insertAfter(el, ref) {
+			root.insertBefore(el, ref.nextSibling);
+		}
+
+		function collect(pId, afterEl) {
+			var kids = snapshot.filter(function (el) {
+				return (el.dataset.parentId || '') === pId;
+			});
+			kids.forEach(function (kid) {
+				if (kid !== afterEl.nextSibling) insertAfter(kid, afterEl);
+				afterEl = kid;
+				afterEl = collect(kid.dataset.id, afterEl);
+			});
+			return afterEl;
+		}
+		collect(parentEl.dataset.id, parentEl);
 	}
 
 	// ── 트리 접힘(Collapse) ──────────────────────────────────────
@@ -491,8 +552,13 @@
 		var newDepth = depth + 1;
 		item.dataset.depth = String(newDepth);
 		item.className = item.className.replace(/\bhs-d\d\b/, 'hs-d' + newDepth);
-
 		updateDepthButtons(item, newDepth);
+
+		// 하위 항목들도 depth +1 (최대 3뎁스까지)
+		adjustDescendantsDepth(item, 1);
+		// 하위 항목들을 DOM 상에서 이 항목 바로 다음으로 이동
+		relocateDescendants(item);
+
 		recalculateParents();
 		updateToggleButtons();
 		applyAllCollapseStates();
@@ -506,8 +572,12 @@
 		var newDepth = depth - 1;
 		item.dataset.depth = String(newDepth);
 		item.className = item.className.replace(/\bhs-d\d\b/, 'hs-d' + newDepth);
-
 		updateDepthButtons(item, newDepth);
+
+		// 하위 항목들도 depth -1
+		adjustDescendantsDepth(item, -1);
+		relocateDescendants(item);
+
 		recalculateParents();
 		updateToggleButtons();
 		applyAllCollapseStates();

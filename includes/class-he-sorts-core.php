@@ -22,7 +22,6 @@ class HE_Sorts_Core {
 	/**
 	 * 저장된 설정을 읽어 $menu / $submenu 전역 변수를 재작성합니다.
 	 * ※ add_menu_page / add_submenu_page 호출 없이 배열을 직접 조작합니다.
-	 *   (훅 내부에서 add_menu_page 를 재호출하면 전역 상태가 오염됩니다.)
 	 */
 	public function apply_custom_order() {
 		global $menu, $submenu;
@@ -95,8 +94,8 @@ class HE_Sorts_Core {
 			// submenu 키 (커스텀이면 URL, 원본이면 slug)
 			$sub_key = ( $type === 'custom' ) ? ( $item['url'] ?? $slug ) : $slug;
 
-			// depth-2, 3 처리
-			$this->collect_children( $items, $item['id'] ?? '', $sub_key, $sub_index, $new_sub, 2 );
+			// depth-2, 3 처리 (menu_index 도 전달 — 원래 top-level 항목이 sub 로 이동된 경우 처리)
+			$this->collect_children( $items, $item['id'] ?? '', $sub_key, $menu_index, $sub_index, $new_sub, 2 );
 
 			$pos += 10;
 		}
@@ -107,19 +106,36 @@ class HE_Sorts_Core {
 	}
 
 	/**
-	 * depth N 자식들을 재귀적으로 $new_sub 에 추가합니다.
+	 * 자식 항목들을 재귀적으로 $new_sub 에 추가합니다.
+	 *
+	 * ■ 핵심 변경점:
+	 *   - depth 값이 아닌 parent_id 만으로 부모-자식 관계를 결정합니다.
+	 *     (원래 1뎁스였던 항목이 2뎁스로 이동해도 저장된 depth 값은 그대로이므로
+	 *      depth 체크를 제거해야 자식을 올바르게 수집할 수 있습니다.)
+	 *   - 원래 $menu 에 있던 항목(id 접두사 "menu::")이 sub 로 이동된 경우,
+	 *     $sub_index 대신 $menu_index 에서 엔트리를 가져와 변환합니다.
 	 */
-	private function collect_children( $all_items, $parent_id, $sub_key, $sub_index, &$new_sub, $depth ) {
+	private function collect_children( $all_items, $parent_id, $sub_key, $menu_index, $sub_index, &$new_sub, $depth ) {
 		foreach ( $all_items as $item ) {
-			if ( ( $item['depth'] ?? 1 ) !== $depth ) continue;
+			// ▶ parent_id 만으로 부모-자식 판단 (depth 값 비교 제거)
 			if ( ( $item['parent_id'] ?? '' ) !== $parent_id ) continue;
 			if ( ! empty( $item['hidden'] ) ) continue;
 
-			$type  = $item['type'] ?? 'original';
-			$label = $item['label'] ?? '';
+			$type    = $item['type'] ?? 'original';
+			$label   = $item['label'] ?? '';
+			$item_id = $item['id'] ?? '';
+
+			// 구분선은 서브메뉴에 삽입하지 않음
+			if ( $type === 'separator' ) continue;
 
 			if ( $type === 'custom' ) {
 				$entry = $this->build_custom_sub_entry( $item );
+
+			} elseif ( strpos( $item_id, 'menu::' ) === 0 ) {
+				// ▶ 원래 top-level 항목이 sub 위치로 이동된 경우
+				//   $sub_index 에 해당 슬러그가 없을 수 있으므로 $menu_index 에서 변환
+				$entry = $this->convert_menu_to_sub_entry( $item, $menu_index );
+
 			} else {
 				$entry = $this->find_sub_entry( $item, $sub_index );
 			}
@@ -130,16 +146,37 @@ class HE_Sorts_Core {
 				$entry[0] = esc_html( $label );
 			}
 
-			if ( $depth === 3 ) {
+			// 3뎁스 이상은 CSS 들여쓰기 클래스 부여
+			if ( $depth >= 3 ) {
 				$entry[4] = trim( ( $entry[4] ?? '' ) . ' he-sorts-depth-3' );
 			}
 
 			$new_sub[ $sub_key ][] = $entry;
 
+			// 최대 3뎁스까지만 재귀
 			if ( $depth < 3 ) {
-				$this->collect_children( $all_items, $item['id'] ?? '', $sub_key, $sub_index, $new_sub, $depth + 1 );
+				$this->collect_children( $all_items, $item_id, $sub_key, $menu_index, $sub_index, $new_sub, $depth + 1 );
 			}
 		}
+	}
+
+	/**
+	 * 원래 $menu 에 있던 top-level 항목을 $submenu 엔트리 형식으로 변환합니다.
+	 * $menu 엔트리: [label, cap, slug, title, class, hook, icon]
+	 * $submenu 엔트리: [label, cap, slug, title, class]
+	 */
+	private function convert_menu_to_sub_entry( $item, $menu_index ) {
+		$slug = $item['wp_slug'] ?? '';
+		$orig = $menu_index[ $slug ] ?? null;
+		if ( ! $orig ) return null;
+
+		return array(
+			$orig[0],                   // label
+			$orig[1],                   // capability
+			$orig[2],                   // slug / URL (그대로 사용 — WP 가 올바르게 링크 생성)
+			$orig[3] ?? $orig[0],       // page title
+			'',                         // class (아이콘 없음)
+		);
 	}
 
 	// ── 공개 접근자 ──────────────────────────────────────────────────────
@@ -260,15 +297,18 @@ class HE_Sorts_Core {
 		$id_parts    = explode( '::', $item['id'], 3 );
 		$orig_parent = $id_parts[1] ?? '';
 
-		// 원본 부모에서 먼저 검색
+		// ① 원본 부모에서 먼저 검색 (가장 정확)
 		if ( ! empty( $sub_index[ $orig_parent ][ $slug ] ) ) {
 			return $sub_index[ $orig_parent ][ $slug ];
 		}
 
-		// 모든 submenu 에서 검색 (메뉴가 다른 부모로 이동된 경우)
-		foreach ( $sub_index as $entries ) {
-			if ( ! empty( $entries[ $slug ] ) ) {
-				return $entries[ $slug ];
+		// ② 원본 부모의 submenu 가 없으면(메뉴를 다른 부모로 이동) 전체 검색
+		//    단, orig_parent 가 명확히 있는 경우에는 전체 검색 안 함 (오탐 방지)
+		if ( empty( $orig_parent ) ) {
+			foreach ( $sub_index as $entries ) {
+				if ( ! empty( $entries[ $slug ] ) ) {
+					return $entries[ $slug ];
+				}
 			}
 		}
 
