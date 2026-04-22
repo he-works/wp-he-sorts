@@ -293,6 +293,27 @@
 	background: var(--hs-gray-200);
 }
 
+/* 접힘 토글 버튼 */
+.hs-toggle-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	border: none;
+	background: transparent;
+	border-radius: 3px;
+	cursor: pointer;
+	color: var(--hs-gray-400);
+	padding: 0;
+	flex-shrink: 0;
+	transition: color var(--hs-t), background var(--hs-t), transform 180ms ease;
+}
+.hs-toggle-btn:hover { background: var(--hs-gray-200); color: var(--hs-gray-700); }
+.hs-toggle-btn.is-open { color: var(--hs-primary); }
+.hs-toggle-btn .dashicons { font-size: 12px; width: 12px; height: 12px; line-height: 1; transition: transform 180ms ease; }
+.hs-toggle-btn.is-open .dashicons { color: var(--hs-primary); }
+
 /* 항목 액션 버튼 */
 .he-sorts-item-actions {
 	display: flex;

@@ -1,5 +1,28 @@
 /* HE SORTS - 전체 관리자 페이지 적용 스타일 */
-/* 3뎁스 들여쓰기 및 커스텀 항목 시각화 */
+/* 3뎁스 들여쓰기, 커스텀 항목 시각화, 구분선 점선 */
+
+/* ── 관리자 메뉴 구분선: 빈 공간 대신 실제 점선으로 표시 ─── */
+#adminmenu li.wp-menu-separator {
+	height: 0 !important;
+	margin: 6px 0 !important;
+	padding: 0 !important;
+	overflow: visible !important;
+	background: transparent !important;
+	position: relative;
+}
+#adminmenu li.wp-menu-separator > .wp-menu-arrow,
+#adminmenu li.wp-menu-separator > a { display: none !important; }
+
+#adminmenu li.wp-menu-separator::after {
+	content: '';
+	display: block;
+	position: absolute;
+	left: 8px;
+	right: 8px;
+	top: 0;
+	border-top: 1px dashed rgba(255, 255, 255, 0.18);
+	pointer-events: none;
+}
 
 #adminmenu li.he-sorts-depth-3 {
 	position: relative;

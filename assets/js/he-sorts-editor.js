@@ -75,6 +75,9 @@
 	var pickerPreview = null;
 	var pickerBuilt   = false;
 
+	// ── 접힘 상태 (d1 item id → true=접힘) ────────────────────────
+	var collapsedState = {};
+
 	// ── 드래그 depth 상태 ─────────────────────────────────────────
 	var isDragging          = false;
 	var dragTargetDepth     = 1;
@@ -105,6 +108,10 @@
 				isDragging        = true;
 				dragItemOrigDepth = parseInt(evt.item.dataset.depth || '1', 10);
 				dragTargetDepth   = dragItemOrigDepth;
+				// 드래그 중에는 접힌 자식 항목도 모두 표시
+				document.querySelectorAll('#tree-root > .he-sorts-item').forEach(function (el) {
+					el.style.removeProperty('display');
+				});
 				showDepthGuide();
 			},
 
@@ -112,7 +119,6 @@
 				isDragging = false;
 				hideDepthGuide();
 
-				// 드래그한 항목에 새 depth 적용
 				var el = evt.item;
 				var prevDepth = parseInt(el.dataset.depth || '1', 10);
 				if (prevDepth !== dragTargetDepth) {
@@ -122,8 +128,13 @@
 				}
 
 				recalculateParents();
+				updateToggleButtons();
+				applyAllCollapseStates();
 			},
 		});
+
+		// 첫 로드 시 접힘 초기화
+		initCollapseState();
 	}
 
 	/**
@@ -196,6 +207,128 @@
 		});
 	}
 
+	// ── 트리 접힘(Collapse) ──────────────────────────────────────
+
+	/** 페이지 초기 로드 시: 자식이 있는 d1 항목은 모두 접힘으로 시작 */
+	function initCollapseState() {
+		document.querySelectorAll('#tree-root > .he-sorts-item').forEach(function (el) {
+			if (parseInt(el.dataset.depth || '1', 10) === 1) {
+				if (hasChildItems(el)) {
+					collapsedState[el.dataset.id] = true;
+				}
+			}
+		});
+		updateToggleButtons();
+		applyAllCollapseStates();
+	}
+
+	/** d1 항목 바로 다음에 depth>1 인 항목이 있는지 확인 */
+	function hasChildItems(d1El) {
+		var next = d1El.nextElementSibling;
+		return !!(next && next.classList.contains('he-sorts-item') &&
+			parseInt(next.dataset.depth || '1', 10) > 1);
+	}
+
+	/** d1 항목의 모든 하위 항목(d2, d3) 반환 */
+	function getDescendants(d1El) {
+		var result = [];
+		var el = d1El.nextElementSibling;
+		while (el && el.classList.contains('he-sorts-item')) {
+			if (parseInt(el.dataset.depth || '1', 10) <= 1) break;
+			result.push(el);
+			el = el.nextElementSibling;
+		}
+		return result;
+	}
+
+	/** collapsedState 에 따라 모든 d1 항목의 자식을 show/hide */
+	function applyAllCollapseStates() {
+		document.querySelectorAll('#tree-root > .he-sorts-item').forEach(function (el) {
+			if (parseInt(el.dataset.depth || '1', 10) !== 1) return;
+			var id         = el.dataset.id;
+			var collapsed  = collapsedState[id] === true;
+			var descendants = getDescendants(el);
+			descendants.forEach(function (child) {
+				child.style.display = collapsed ? 'none' : '';
+			});
+			// 토글 버튼 아이콘 갱신
+			var btn = el.querySelector('.hs-toggle-btn .dashicons');
+			if (btn) {
+				btn.className = 'dashicons ' + (collapsed ? 'dashicons-arrow-right-alt2' : 'dashicons-arrow-down-alt2');
+			}
+			var btnWrap = el.querySelector('.hs-toggle-btn');
+			if (btnWrap) btnWrap.classList.toggle('is-open', !collapsed);
+		});
+	}
+
+	/** d1 항목의 접힘 상태를 토글 */
+	function toggleCollapse(d1El) {
+		var id = d1El.dataset.id;
+		collapsedState[id] = !collapsedState[id];
+		applyAllCollapseStates();
+	}
+
+	/**
+	 * 트리 전체를 스캔해 자식이 있는 d1 항목에 토글 버튼을 추가/제거합니다.
+	 * 드래그·인덴트 조작 후 호출하세요.
+	 */
+	function updateToggleButtons() {
+		document.querySelectorAll('#tree-root > .he-sorts-item').forEach(function (el) {
+			if (parseInt(el.dataset.depth || '1', 10) !== 1) return;
+			var hasKids  = hasChildItems(el);
+			var existing = el.querySelector('.hs-toggle-btn');
+
+			if (hasKids && !existing) {
+				var id        = el.dataset.id;
+				var collapsed = collapsedState[id] !== false; // undefined = 접힘
+				var btn = document.createElement('button');
+				btn.type      = 'button';
+				btn.className = 'he-sorts-action-btn hs-toggle-btn' + (collapsed ? '' : ' is-open');
+				btn.title     = '하위 메뉴 펼치기/접기';
+				btn.innerHTML = '<span class="dashicons ' +
+					(collapsed ? 'dashicons-arrow-right-alt2' : 'dashicons-arrow-down-alt2') +
+					'"></span>';
+				// item-actions 바로 앞에 삽입
+				var actions = el.querySelector('.he-sorts-item-actions');
+				if (actions) el.insertBefore(btn, actions);
+				else         el.appendChild(btn);
+			} else if (!hasKids && existing) {
+				existing.remove();
+			}
+		});
+	}
+
+	// ── 구분선 추가 ──────────────────────────────────────────────
+	function addSeparatorItem() {
+		var id  = 'separator::' + Math.random().toString(36).slice(2, 10);
+		var el  = document.createElement('div');
+		el.className         = 'he-sorts-item hs-d1 he-sorts-separator';
+		el.dataset.id        = id;
+		el.dataset.type      = 'separator';
+		el.dataset.depth     = '1';
+		el.dataset.parentId  = '';
+		el.dataset.hidden    = 'false';
+
+		el.innerHTML =
+			'<span class="he-sorts-drag-handle dashicons dashicons-move"></span>' +
+			'<span class="hs-sep-line"></span>' +
+			'<div class="he-sorts-item-actions">' +
+				'<button class="he-sorts-action-btn he-sorts-toggle-visibility" title="숨기기" data-hidden="false">' +
+					'<span class="dashicons dashicons-visibility"></span>' +
+				'</button>' +
+			'</div>';
+
+		var root = document.getElementById('tree-root');
+		if (selectedItem && selectedItem.parentNode === root) {
+			root.insertBefore(el, selectedItem.nextSibling);
+		} else {
+			root.appendChild(el);
+		}
+
+		updateToggleButtons();
+		showToast('구분선이 추가되었습니다.');
+	}
+
 	// ── 이벤트 바인딩 ─────────────────────────────────────────────
 	function bindEvents() {
 		var tree = document.getElementById('he-sorts-tree');
@@ -204,6 +337,13 @@
 		tree.addEventListener('click', function (e) {
 			var item = e.target.closest('.he-sorts-item');
 			if (!item) return;
+
+			// 접힘 토글 버튼
+			if (e.target.closest('.hs-toggle-btn')) {
+				e.stopPropagation();
+				toggleCollapse(item);
+				return;
+			}
 
 			if (e.target.closest('.he-sorts-indent')) {
 				e.stopPropagation();
@@ -228,6 +368,7 @@
 		document.getElementById('he-sorts-save').addEventListener('click', handleSave);
 		document.getElementById('he-sorts-reset').addEventListener('click', handleReset);
 		document.getElementById('he-sorts-add-item').addEventListener('click', function () { openModal(); });
+		document.getElementById('he-sorts-add-sep').addEventListener('click', addSeparatorItem);
 
 		document.getElementById('prop-apply').addEventListener('click', handlePropsApply);
 		document.getElementById('prop-delete').addEventListener('click', handlePropsDelete);
@@ -351,9 +492,10 @@
 		item.dataset.depth = String(newDepth);
 		item.className = item.className.replace(/\bhs-d\d\b/, 'hs-d' + newDepth);
 
-		// 들여쓰기/내보내기 버튼 갱신
 		updateDepthButtons(item, newDepth);
 		recalculateParents();
+		updateToggleButtons();
+		applyAllCollapseStates();
 	}
 
 	// ── 내보내기 (depth -1) ───────────────────────────────────────
@@ -367,6 +509,8 @@
 
 		updateDepthButtons(item, newDepth);
 		recalculateParents();
+		updateToggleButtons();
+		applyAllCollapseStates();
 	}
 
 	function updateDepthButtons(item, depth) {
@@ -642,6 +786,9 @@
 		} else {
 			root.appendChild(el);
 		}
+
+		updateToggleButtons();
+		applyAllCollapseStates();
 	}
 
 	// ── 아이콘 미리보기 ───────────────────────────────────────────

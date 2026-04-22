@@ -59,6 +59,10 @@ function he_sorts_page_editor() {
 					<span class="dashicons dashicons-plus-alt2"></span>
 					<span>항목 추가</span>
 				</button>
+				<button id="he-sorts-add-sep" class="he-sorts-btn he-sorts-btn--ghost">
+					<span class="dashicons dashicons-minus"></span>
+					<span>구분선</span>
+				</button>
 				<button id="he-sorts-reset" class="he-sorts-btn he-sorts-btn--ghost">
 					<span class="dashicons dashicons-image-rotate"></span>
 					<span>초기화</span>
