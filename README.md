@@ -2,7 +2,7 @@
 
 > WordPress 관리자 메뉴를 자유롭게 정렬·편집할 수 있는 플러그인
 
-![Version](https://img.shields.io/badge/version-1.0.7-blue) ![WordPress](https://img.shields.io/badge/WordPress-5.0%2B-21759b) ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4) ![License](https://img.shields.io/badge/license-GPL--2.0-green)
+![Version](https://img.shields.io/badge/version-1.0.8-blue) ![WordPress](https://img.shields.io/badge/WordPress-5.0%2B-21759b) ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4) ![License](https://img.shields.io/badge/license-GPL--2.0-green)
 
 ---
 
@@ -110,6 +110,10 @@
 ---
 
 ## 변경 이력
+
+### v1.0.8 (2026-04-23)
+- **버그 수정**: 2뎁스·3뎁스로 이동한 메뉴 클릭 시 프론트 404 에러 수정 (서브메뉴 URL `admin.php?page=` 정규화)
+- **UX 개선**: 드래그 시 접혀있는 하위 메뉴가 강제로 펼쳐지던 현상 수정 (수동으로 펼친 상태만 유지)
 
 ### v1.0.7 (2026-04-23)
 - **버그 수정**: 커스텀 메뉴 항목의 `target="_blank"` 설정이 실제 관리자 메뉴에 반영되지 않던 문제 수정 (`admin_head` JS 주입)
