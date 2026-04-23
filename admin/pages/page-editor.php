@@ -285,11 +285,13 @@ function he_sorts_render_flat( $items ) {
 				. ' data-type="separator"'
 				. ' data-depth="' . $depth . '"'
 				. ' data-hidden="' . $hidden . '">'
-				. '<span class="he-sorts-drag-handle dashicons dashicons-move"></span>'
-				. '<span class="hs-sep-line"></span>'
-				. '<div class="he-sorts-item-actions">'
+				. '<span class="he-sorts-drag-handle dashicons dashicons-menu-alt"></span>'
+				. '<span class="he-sorts-move-btns">'
 				. '<button class="he-sorts-action-btn he-sorts-move-up" title="위로"><span class="dashicons dashicons-arrow-up-alt2"></span></button>'
 				. '<button class="he-sorts-action-btn he-sorts-move-down" title="아래로"><span class="dashicons dashicons-arrow-down-alt2"></span></button>'
+				. '</span>'
+				. '<span class="hs-sep-line"></span>'
+				. '<div class="he-sorts-item-actions">'
 				. '<button class="he-sorts-action-btn he-sorts-toggle-visibility" data-hidden="' . $hidden . '" title="숨기기">'
 				. '<span class="dashicons ' . ( ! empty( $item['hidden'] ) ? 'dashicons-hidden' : 'dashicons-visibility' ) . '"></span>'
 				. '</button>'
@@ -323,7 +325,13 @@ function he_sorts_render_flat( $items ) {
 			. ' data-unmanaged="' . $unmanaged . '"'
 			. '>';
 
-		echo '<span class="he-sorts-drag-handle dashicons dashicons-move"></span>';
+		// 드래그 핸들 (≡ 아이콘)
+		echo '<span class="he-sorts-drag-handle dashicons dashicons-menu-alt"></span>';
+		// ▲/▼ 이동 버튼 — 드래그 핸들과 아이콘 사이
+		echo '<span class="he-sorts-move-btns">';
+		echo '<button class="he-sorts-action-btn he-sorts-move-up" title="위로"><span class="dashicons dashicons-arrow-up-alt2"></span></button>';
+		echo '<button class="he-sorts-action-btn he-sorts-move-down" title="아래로"><span class="dashicons dashicons-arrow-down-alt2"></span></button>';
+		echo '</span>';
 		echo $icon_html;
 		echo '<span class="hs-label">' . $label . '</span>';
 
@@ -335,8 +343,6 @@ function he_sorts_render_flat( $items ) {
 		}
 
 		echo '<div class="he-sorts-item-actions">';
-		echo '<button class="he-sorts-action-btn he-sorts-move-up" title="위로"><span class="dashicons dashicons-arrow-up-alt2"></span></button>';
-		echo '<button class="he-sorts-action-btn he-sorts-move-down" title="아래로"><span class="dashicons dashicons-arrow-down-alt2"></span></button>';
 		if ( $depth < 3 ) {
 			echo '<button class="he-sorts-action-btn he-sorts-indent" title="하위로"><span class="dashicons dashicons-arrow-right-alt"></span></button>';
 		}

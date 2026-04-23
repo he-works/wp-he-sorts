@@ -2,7 +2,7 @@
 
 > WordPress 관리자 메뉴를 자유롭게 정렬·편집할 수 있는 플러그인
 
-![Version](https://img.shields.io/badge/version-1.0.9-blue) ![WordPress](https://img.shields.io/badge/WordPress-5.0%2B-21759b) ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4) ![License](https://img.shields.io/badge/license-GPL--2.0-green)
+![Version](https://img.shields.io/badge/version-1.0.10-blue) ![WordPress](https://img.shields.io/badge/WordPress-5.0%2B-21759b) ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4) ![License](https://img.shields.io/badge/license-GPL--2.0-green)
 
 ---
 
@@ -110,6 +110,13 @@
 ---
 
 ## 변경 이력
+
+### v1.0.10 (2026-04-23)
+- **버그 수정**: 3뎁스 메뉴 접근 시 권한 오류 수정 — `$_registered_pages` 훅 이름 불일치 패치 (`patch_depth3_registered_pages()`)
+- **버그 수정**: 항목을 다른 메뉴 하위로 이동 시 하위 메뉴가 자동으로 펼쳐지던 문제 수정 (모든 드래그 후 자동 접힘 적용)
+- **UX 개선**: 하위 메뉴가 있는 항목은 3뎁스로 이동 불가 (드래그·들여쓰기 모두 차단)
+- **UX 개선**: ▲/▼ 이동 버튼 위치를 드래그 핸들 우측(아이콘 좌측)으로 이동 — 펼치기/접기 화살표와 구분
+- **UX 개선**: 드래그 핸들 아이콘을 ≡ (hamburger) 스타일로 변경
 
 ### v1.0.9 (2026-04-23)
 - **버그 수정**: `admin.php?page=hbu-gdrive` 등 플러그인 페이지 접근 시 권한 오류 수정 (PHP URL 정규화 제거 → 클라이언트 JS 에서 처리)

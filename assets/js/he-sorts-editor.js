@@ -82,6 +82,7 @@
 	var isDragging          = false;
 	var dragTargetDepth     = 1;
 	var dragItemOrigDepth   = 1;
+	var dragItemHasChildren = false; // 드래그 시작 시 하위 항목 존재 여부
 	var dragStartX          = 0;
 	var dragDepthBadge      = null;
 	var dragDepthGuide      = null;
@@ -105,18 +106,19 @@
 			dragClass:  'sortable-drag',
 
 			onStart: function (evt) {
-				isDragging        = true;
-				dragItemOrigDepth = parseInt(evt.item.dataset.depth || '1', 10);
-				dragTargetDepth   = dragItemOrigDepth;
-				dragStartX        = evt.originalEvent ? evt.originalEvent.clientX : 0;
-				// ※ 수동으로 펼쳐놓은 하위 메뉴는 그대로 유지합니다.
-				//   onEnd 에서 applyAllCollapseStates() 가 접힘 상태를 복원합니다.
+				isDragging            = true;
+				dragItemOrigDepth     = parseInt(evt.item.dataset.depth || '1', 10);
+				dragTargetDepth       = dragItemOrigDepth;
+				dragItemHasChildren   = hasChildItems(evt.item);
+				dragStartX            = evt.originalEvent ? evt.originalEvent.clientX : 0;
 				showDepthGuide();
 			},
 
 			onMove: function (evt) {
 				if (evt.originalEvent) {
 					var newDepth = calcDepthFromDelta(evt.originalEvent.clientX);
+					// 하위 항목이 있는 경우 최대 2뎁스까지만 허용
+					if (dragItemHasChildren && newDepth >= 3) newDepth = 2;
 					dragTargetDepth = newDepth;
 					updateGuideActive(newDepth);
 					if (!dragDepthBadge) {
@@ -138,20 +140,22 @@
 
 				var el        = evt.item;
 				var prevDepth = parseInt(el.dataset.depth || '1', 10);
-				var delta     = dragTargetDepth - prevDepth;
+
+				// 하위 항목이 있으면 최대 2뎁스까지만 허용
+				if (dragItemHasChildren && dragTargetDepth >= 3) dragTargetDepth = 2;
+
+				var delta = dragTargetDepth - prevDepth;
 
 				if (delta !== 0) {
 					el.dataset.depth = String(dragTargetDepth);
 					el.className = el.className.replace(/\bhs-d\d\b/, 'hs-d' + dragTargetDepth);
 					updateDepthButtons(el, dragTargetDepth);
-					// 하위 항목들도 depth 조정 후 DOM 위치 이동
 					adjustDescendantsDepth(el, delta);
 					relocateDescendants(el);
-
-					// ── 뎁스 변경 시 이동된 항목의 하위를 자동 접힘 ──────────
-					// 이동 후 갑자기 하위 메뉴가 펼쳐지는 혼란 방지
-					collapseAfterMove(el);
 				}
+
+				// ── 이동 후 항상 자동 접힘 (새 부모 아래에 하위가 펼쳐지는 현상 방지) ──
+				collapseAfterMove(el);
 
 				recalculateParents();
 				updateToggleButtons();
@@ -395,7 +399,11 @@
 		el.dataset.hidden    = 'false';
 
 		el.innerHTML =
-			'<span class="he-sorts-drag-handle dashicons dashicons-move"></span>' +
+			'<span class="he-sorts-drag-handle dashicons dashicons-menu-alt"></span>' +
+			'<span class="he-sorts-move-btns">' +
+				'<button class="he-sorts-action-btn he-sorts-move-up" title="위로"><span class="dashicons dashicons-arrow-up-alt2"></span></button>' +
+				'<button class="he-sorts-action-btn he-sorts-move-down" title="아래로"><span class="dashicons dashicons-arrow-down-alt2"></span></button>' +
+			'</span>' +
 			'<span class="hs-sep-line"></span>' +
 			'<div class="he-sorts-item-actions">' +
 				'<button class="he-sorts-action-btn he-sorts-toggle-visibility" title="숨기기" data-hidden="false">' +
@@ -552,6 +560,11 @@
 	function handleIndent(item) {
 		var depth = parseInt(item.dataset.depth || '1', 10);
 		if (depth >= 3) { showToast(i18n.maxDepth, 'error'); return; }
+		// 하위 항목이 있는 경우 3뎁스로 이동 불가
+		if (depth === 2 && hasChildItems(item)) {
+			showToast('하위 메뉴가 있는 항목은 3뎁스로 이동할 수 없습니다.', 'error');
+			return;
+		}
 
 		var newDepth = depth + 1;
 		item.dataset.depth = String(newDepth);
@@ -975,12 +988,14 @@
 		el.dataset.hidden     = 'false';
 
 		el.innerHTML =
-			'<span class="he-sorts-drag-handle dashicons dashicons-move"></span>' +
+			'<span class="he-sorts-drag-handle dashicons dashicons-menu-alt"></span>' +
+			'<span class="he-sorts-move-btns">' +
+				'<button class="he-sorts-action-btn he-sorts-move-up" title="위로"><span class="dashicons dashicons-arrow-up-alt2"></span></button>' +
+				'<button class="he-sorts-action-btn he-sorts-move-down" title="아래로"><span class="dashicons dashicons-arrow-down-alt2"></span></button>' +
+			'</span>' +
 			'<span class="' + escAttr(iconClass) + ' hs-icon"></span>' +
 			'<span class="hs-label">' + escHtml(item.label || '') + '</span>' +
 			'<div class="he-sorts-item-actions">' +
-				'<button class="he-sorts-action-btn he-sorts-move-up" title="위로"><span class="dashicons dashicons-arrow-up-alt2"></span></button>' +
-				'<button class="he-sorts-action-btn he-sorts-move-down" title="아래로"><span class="dashicons dashicons-arrow-down-alt2"></span></button>' +
 				(depth < 3 ? '<button class="he-sorts-action-btn he-sorts-indent" title="하위로"><span class="dashicons dashicons-arrow-right-alt"></span></button>' : '') +
 				(depth > 1 ? '<button class="he-sorts-action-btn he-sorts-outdent" title="상위로"><span class="dashicons dashicons-arrow-left-alt"></span></button>' : '') +
 				'<button class="he-sorts-action-btn he-sorts-toggle-visibility" title="숨기기" data-hidden="false"><span class="dashicons dashicons-visibility"></span></button>' +

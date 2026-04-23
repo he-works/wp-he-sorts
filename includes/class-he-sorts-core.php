@@ -103,6 +103,72 @@ class HE_Sorts_Core {
 		$menu    = $new_menu;
 		$submenu = $new_sub;
 		ksort( $menu );
+
+		// depth-3 항목 권한 패치
+		$this->patch_depth3_registered_pages( $items );
+	}
+
+	/**
+	 * WordPress 권한 오류 수정 (depth-3 항목 전용)
+	 *
+	 * 문제 원인:
+	 *   admin.php 에서 $_parent_pages[$plugin_page] 값이 '.php' 를 포함하지 않으면
+	 *   (예: 'googlesitekit', 'hbu') 훅 이름 계산에 'admin.php' 를 부모로 사용합니다.
+	 *   이 때 계산된 훅 이름이 플러그인이 원래 등록한 훅 이름과 달라
+	 *   $_registered_pages 확인이 실패하고 "권한 없음" 오류가 발생합니다.
+	 *
+	 * 해결:
+	 *   잘못된 훅 이름을 $_registered_pages 에 추가하고,
+	 *   해당 훅이 실행될 때 원래 훅으로 위임하는 액션을 등록합니다.
+	 */
+	private function patch_depth3_registered_pages( $items ) {
+		global $_registered_pages;
+
+		if ( ! function_exists( 'get_plugin_page_hookname' ) ) {
+			return;
+		}
+
+		foreach ( $items as $item ) {
+			if ( ( $item['depth'] ?? 1 ) < 3 )         continue;
+			if ( ( $item['type'] ?? '' ) === 'custom' ) continue;
+			if ( ! empty( $item['hidden'] ) )           continue;
+
+			$slug        = $item['wp_slug'] ?? '';
+			$id_parts    = explode( '::', $item['id'] ?? '', 3 );
+			$orig_parent = $id_parts[1] ?? '';
+
+			if ( ! $slug || ! $orig_parent ) continue;
+
+			// WordPress admin.php 가 실제로 계산할 (잘못된) 훅 이름
+			$wrong_hook   = get_plugin_page_hookname( $slug, 'admin.php' );
+			// 플러그인이 원래 등록한 (올바른) 훅 이름
+			$correct_hook = get_plugin_page_hookname( $slug, $orig_parent );
+
+			if ( $wrong_hook === $correct_hook ) continue; // 이미 일치, 패치 불필요
+
+			// 잘못된 훅 이름을 접근 가능으로 등록
+			if ( empty( $_registered_pages[ $wrong_hook ] ) ) {
+				$_registered_pages[ $wrong_hook ] = true;
+			}
+
+			// 잘못된 훅 → 올바른 훅으로 위임 (사전 로딩 + 페이지 출력 모두)
+			if ( ! has_action( 'load-' . $wrong_hook ) ) {
+				add_action(
+					'load-' . $wrong_hook,
+					static function () use ( $correct_hook ) {
+						do_action( 'load-' . $correct_hook );
+					}
+				);
+			}
+			if ( ! has_action( $wrong_hook ) ) {
+				add_action(
+					$wrong_hook,
+					static function () use ( $correct_hook ) {
+						do_action( $correct_hook );
+					}
+				);
+			}
+		}
 	}
 
 	/**
