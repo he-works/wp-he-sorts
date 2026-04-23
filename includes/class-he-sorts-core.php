@@ -149,6 +149,24 @@ class HE_Sorts_Core {
 				$entry[0] = esc_html( $label );
 			}
 
+			// ── URL 정규화 ─────────────────────────────────────────────
+			// WordPress 는 부모가 .php 파일이 아닌 커스텀 URL 일 때
+			// 서브메뉴 슬러그를 admin_url($slug) 로 렌더링해
+			// "wp-admin/slug" 같은 잘못된 경로가 생긴다.
+			// plain 슬러그를 "admin.php?page=slug" 형식으로 정규화하면
+			// WordPress 가 항상 admin_url("admin.php?page=slug") = 올바른 URL 을 생성한다.
+			if ( $type !== 'custom' && ! empty( $entry[2] ) ) {
+				$s = $entry[2];
+				if (
+					strpos( $s, '://' ) === false &&
+					strpos( $s, '.php' ) === false &&
+					strpos( $s, '?' )    === false &&
+					strpos( $s, '/' )    !== 0
+				) {
+					$entry[2] = 'admin.php?page=' . $s;
+				}
+			}
+
 			// 3뎁스 이상은 CSS 들여쓰기 클래스 부여
 			// WordPress $submenu 는 최상위 slug(sub_key) 하나의 키만 지원하므로
 			// depth-2, depth-3 모두 동일한 $sub_key 아래에 추가해야 합니다.

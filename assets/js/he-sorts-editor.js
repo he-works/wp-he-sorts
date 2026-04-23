@@ -109,10 +109,8 @@
 				dragItemOrigDepth = parseInt(evt.item.dataset.depth || '1', 10);
 				dragTargetDepth   = dragItemOrigDepth;
 				dragStartX        = evt.originalEvent ? evt.originalEvent.clientX : 0;
-				// 드래그 중에는 접힌 자식 항목도 모두 표시
-				document.querySelectorAll('#tree-root > .he-sorts-item').forEach(function (el) {
-					el.style.removeProperty('display');
-				});
+				// ※ 수동으로 펼쳐놓은 하위 메뉴는 그대로 유지합니다.
+				//   onEnd 에서 applyAllCollapseStates() 가 접힘 상태를 복원합니다.
 				showDepthGuide();
 			},
 
