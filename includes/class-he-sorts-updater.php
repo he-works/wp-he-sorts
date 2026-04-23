@@ -89,8 +89,26 @@ class HE_Sorts_Updater {
 
 		global $wp_filesystem;
 
+		// $wp_filesystem 이 초기화되지 않은 경우 직접 초기화 시도
+		if ( ! $wp_filesystem ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+			WP_Filesystem();
+		}
+
+		if ( ! $wp_filesystem ) {
+			return new WP_Error(
+				'he_sorts_filesystem',
+				__( 'WP Filesystem을 초기화할 수 없습니다.', 'he-sorts' )
+			);
+		}
+
 		$plugin_folder = WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . dirname( $this->plugin_slug );
-		$wp_filesystem->move( $result['destination'], $plugin_folder );
+
+		// 출처와 목적지가 다를 때만 이동 (같으면 이동 불필요 — 이동 시 원본이 삭제됨)
+		if ( trailingslashit( $result['destination'] ) !== trailingslashit( $plugin_folder ) ) {
+			$wp_filesystem->move( $result['destination'], $plugin_folder, true );
+		}
+
 		$result['destination'] = $plugin_folder;
 
 		activate_plugin( $this->plugin_slug );

@@ -2,7 +2,7 @@
 
 > WordPress 관리자 메뉴를 자유롭게 정렬·편집할 수 있는 플러그인
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue) ![WordPress](https://img.shields.io/badge/WordPress-5.0%2B-21759b) ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4) ![License](https://img.shields.io/badge/license-GPL--2.0-green)
+![Version](https://img.shields.io/badge/version-1.0.7-blue) ![WordPress](https://img.shields.io/badge/WordPress-5.0%2B-21759b) ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4) ![License](https://img.shields.io/badge/license-GPL--2.0-green)
 
 ---
 
@@ -106,6 +106,30 @@
 
 플러그인은 GitHub 릴리즈를 통해 자동 업데이트를 지원합니다.  
 새 버전이 출시되면 WordPress 관리자 → **플러그인** 페이지 또는 **대시보드 → 업데이트** 화면에서 바로 업데이트할 수 있습니다.
+
+---
+
+## 변경 이력
+
+### v1.0.7 (2026-04-23)
+- **버그 수정**: 커스텀 메뉴 항목의 `target="_blank"` 설정이 실제 관리자 메뉴에 반영되지 않던 문제 수정 (`admin_head` JS 주입)
+- **버그 수정**: 구분선 slug가 WordPress 기본 구분선과 충돌할 수 있던 문제 수정 (`separator-he-sorts-*` 형식으로 변경)
+- **보안 강화**: 커스텀 메뉴 아이콘 필드에 이미지 URL 입력 시 올바르게 처리되도록 sanitization 개선
+- **안정성**: 드래그 depth 추적을 `document.mousemove` 대신 SortableJS `onMove` 콜백으로 교체 (Firefox 호환성)
+- **안정성**: `he_sorts_dfs()` 순환 참조 방지 로직 추가
+- **자동 업데이트 수정**: `after_install()` 파일시스템 초기화 개선 및 같은 경로 이동 시 파일 삭제 버그 수정
+
+### v1.0.6 (2026-04-22)
+- **버그 수정**: `find_sub_entry()` — 서브메뉴 항목을 다른 상위 메뉴로 이동한 경우 원본 부모에 없으면 전체 `$sub_index`를 순회해 항목을 찾도록 수정
+- **버그 수정**: `collect_children()` 주석 및 로직 명확화 — WordPress `$submenu`가 최상위 slug 하나의 키만 지원하므로 depth-3 항목도 동일한 `$sub_key` 아래에 추가되도록 명시
+- **버그 수정**: `after_install()` — `$wp_filesystem`이 null인 경우 WP_Error를 반환하도록 안전 처리 추가
+- **버그 수정**: `serializeList()` (JS) — `wp_slug`, `parent_id`가 빈 문자열일 때 `null`로 직렬화하도록 수정
+- **버그 수정**: `relocateDescendants()` (JS) — 드래그 후 손자(depth-3) 항목의 DOM 순서가 뒤섞이던 문제 수정
+- **버그 수정**: `he-sorts-menu.css` — PHP에서 부여하는 커스텀 메뉴 클래스(`he-sorts-custom`)와 CSS 선택자 불일치 수정
+- **버그 수정**: README.md 버전 뱃지를 실제 버전에 맞게 수정
+
+### v1.0.5
+- 이전 버전
 
 ---
 
