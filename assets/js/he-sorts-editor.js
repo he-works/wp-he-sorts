@@ -147,6 +147,10 @@
 					// 하위 항목들도 depth 조정 후 DOM 위치 이동
 					adjustDescendantsDepth(el, delta);
 					relocateDescendants(el);
+
+					// ── 뎁스 변경 시 이동된 항목의 하위를 자동 접힘 ──────────
+					// 이동 후 갑자기 하위 메뉴가 펼쳐지는 혼란 방지
+					collapseAfterMove(el);
 				}
 
 				recalculateParents();
@@ -426,6 +430,16 @@
 				return;
 			}
 
+			if (e.target.closest('.he-sorts-move-up')) {
+				e.stopPropagation();
+				moveItemUp(item);
+				return;
+			}
+			if (e.target.closest('.he-sorts-move-down')) {
+				e.stopPropagation();
+				moveItemDown(item);
+				return;
+			}
 			if (e.target.closest('.he-sorts-indent')) {
 				e.stopPropagation();
 				handleIndent(item);
@@ -549,6 +563,7 @@
 		// 하위 항목들을 DOM 상에서 이 항목 바로 다음으로 이동
 		relocateDescendants(item);
 
+		collapseAfterMove(item);
 		recalculateParents();
 		updateToggleButtons();
 		applyAllCollapseStates();
@@ -568,6 +583,7 @@
 		adjustDescendantsDepth(item, -1);
 		relocateDescendants(item);
 
+		collapseAfterMove(item);
 		recalculateParents();
 		updateToggleButtons();
 		applyAllCollapseStates();
@@ -604,6 +620,133 @@
 				actions.insertBefore(btn2, actions.firstChild);
 			}
 		}
+	}
+
+	// ── 뎁스 변경 후 자동 접힘 ──────────────────────────────────
+	/**
+	 * 항목의 뎁스가 바뀌었을 때 호출합니다.
+	 * - 이동된 항목이 d1 이면 자신을 collapsedState 에 등록합니다.
+	 * - 이동된 항목이 d2+ 이면 직상위 d1 조상을 접힘으로 설정합니다.
+	 * applyAllCollapseStates() 보다 먼저 호출하세요.
+	 */
+	function collapseAfterMove(el) {
+		var depth = parseInt(el.dataset.depth || '1', 10);
+		if (depth === 1) {
+			if (hasChildItems(el)) {
+				collapsedState[el.dataset.id] = true;
+			}
+		} else {
+			var d1Anc = findD1AncestorInDOM(el);
+			if (d1Anc) {
+				collapsedState[d1Anc.dataset.id] = true;
+			}
+		}
+	}
+
+	/** el 앞에서 가장 가까운 depth=1 항목을 DOM 순서로 반환합니다. */
+	function findD1AncestorInDOM(el) {
+		var prev = el.previousElementSibling;
+		while (prev && prev.classList.contains('he-sorts-item')) {
+			if (parseInt(prev.dataset.depth || '1', 10) === 1) return prev;
+			prev = prev.previousElementSibling;
+		}
+		return null;
+	}
+
+	// ── ▲/▼ 위치 이동 ────────────────────────────────────────────
+
+	/**
+	 * 항목 + 모든 하위 항목(block) 을 반환합니다.
+	 * DOM 상에서 el 다음으로 이어지는 더 깊은 depth 항목들이 block 입니다.
+	 */
+	function getItemBlock(el) {
+		var depth = parseInt(el.dataset.depth || '1', 10);
+		var block = [el];
+		var next  = el.nextElementSibling;
+		while (next && next.classList.contains('he-sorts-item')) {
+			var nd = parseInt(next.dataset.depth || '1', 10);
+			if (nd <= depth) break;
+			block.push(next);
+			next = next.nextElementSibling;
+		}
+		return block;
+	}
+
+	/**
+	 * el 보다 앞에 있는 같은 depth + 같은 parent_id 형제를 반환합니다.
+	 */
+	function findPrevSibling(el) {
+		var depth    = parseInt(el.dataset.depth || '1', 10);
+		var parentId = el.dataset.parentId || '';
+		var items    = Array.from(document.querySelectorAll('#tree-root > .he-sorts-item'));
+		var idx      = items.indexOf(el);
+		for (var i = idx - 1; i >= 0; i--) {
+			var prev  = items[i];
+			var pDepth = parseInt(prev.dataset.depth || '1', 10);
+			if (pDepth === depth && (prev.dataset.parentId || '') === parentId) return prev;
+			if (pDepth < depth) break; // 부모 레벨에 도달, 형제 없음
+		}
+		return null;
+	}
+
+	/**
+	 * el 보다 뒤에 있는 같은 depth + 같은 parent_id 형제를 반환합니다.
+	 * el 의 block 을 건너뛴 다음부터 탐색합니다.
+	 */
+	function findNextSibling(el) {
+		var depth    = parseInt(el.dataset.depth || '1', 10);
+		var parentId = el.dataset.parentId || '';
+		// el 의 block 마지막 항목부터 탐색
+		var block = getItemBlock(el);
+		var next  = block[block.length - 1].nextElementSibling;
+		while (next && next.classList.contains('he-sorts-item')) {
+			var nd = parseInt(next.dataset.depth || '1', 10);
+			if (nd < depth) break; // 부모 레벨 도달
+			if (nd === depth && (next.dataset.parentId || '') === parentId) return next;
+			next = next.nextElementSibling;
+		}
+		return null;
+	}
+
+	/** 항목을 동일 레벨 한 칸 위로 이동합니다. */
+	function moveItemUp(el) {
+		var prevSib = findPrevSibling(el);
+		if (!prevSib) return; // 이미 맨 위
+
+		var root      = document.getElementById('tree-root');
+		var myBlock   = getItemBlock(el);
+		var prevBlock = getItemBlock(prevSib);
+
+		// myBlock 을 prevBlock 앞으로 이동
+		var anchor = prevBlock[0];
+		myBlock.forEach(function (node) {
+			root.insertBefore(node, anchor);
+		});
+
+		recalculateParents();
+		updateToggleButtons();
+		applyAllCollapseStates();
+	}
+
+	/** 항목을 동일 레벨 한 칸 아래로 이동합니다. */
+	function moveItemDown(el) {
+		var nextSib = findNextSibling(el);
+		if (!nextSib) return; // 이미 맨 아래
+
+		var root      = document.getElementById('tree-root');
+		var myBlock   = getItemBlock(el);
+		var nextBlock = getItemBlock(nextSib);
+
+		// myBlock 을 nextBlock 뒤로 이동
+		var lastInNext = nextBlock[nextBlock.length - 1];
+		var refNode    = lastInNext.nextSibling; // null 이면 맨 뒤
+		myBlock.forEach(function (node) {
+			root.insertBefore(node, refNode);
+		});
+
+		recalculateParents();
+		updateToggleButtons();
+		applyAllCollapseStates();
 	}
 
 	// ── 숨기기 토글 ──────────────────────────────────────────────
@@ -836,6 +979,8 @@
 			'<span class="' + escAttr(iconClass) + ' hs-icon"></span>' +
 			'<span class="hs-label">' + escHtml(item.label || '') + '</span>' +
 			'<div class="he-sorts-item-actions">' +
+				'<button class="he-sorts-action-btn he-sorts-move-up" title="위로"><span class="dashicons dashicons-arrow-up-alt2"></span></button>' +
+				'<button class="he-sorts-action-btn he-sorts-move-down" title="아래로"><span class="dashicons dashicons-arrow-down-alt2"></span></button>' +
 				(depth < 3 ? '<button class="he-sorts-action-btn he-sorts-indent" title="하위로"><span class="dashicons dashicons-arrow-right-alt"></span></button>' : '') +
 				(depth > 1 ? '<button class="he-sorts-action-btn he-sorts-outdent" title="상위로"><span class="dashicons dashicons-arrow-left-alt"></span></button>' : '') +
 				'<button class="he-sorts-action-btn he-sorts-toggle-visibility" title="숨기기" data-hidden="false"><span class="dashicons dashicons-visibility"></span></button>' +

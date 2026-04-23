@@ -2,7 +2,7 @@
 
 > WordPress 관리자 메뉴를 자유롭게 정렬·편집할 수 있는 플러그인
 
-![Version](https://img.shields.io/badge/version-1.0.8-blue) ![WordPress](https://img.shields.io/badge/WordPress-5.0%2B-21759b) ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4) ![License](https://img.shields.io/badge/license-GPL--2.0-green)
+![Version](https://img.shields.io/badge/version-1.0.9-blue) ![WordPress](https://img.shields.io/badge/WordPress-5.0%2B-21759b) ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4) ![License](https://img.shields.io/badge/license-GPL--2.0-green)
 
 ---
 
@@ -110,6 +110,13 @@
 ---
 
 ## 변경 이력
+
+### v1.0.9 (2026-04-23)
+- **버그 수정**: `admin.php?page=hbu-gdrive` 등 플러그인 페이지 접근 시 권한 오류 수정 (PHP URL 정규화 제거 → 클라이언트 JS 에서 처리)
+- **버그 수정**: 커스텀 메뉴(HE SORTS 추가 메뉴) 클릭 시 WP 관리자 사이드바에서 하위 메뉴가 펼쳐지지 않던 문제 수정 (`he-sorts-menu.js` 아코디언 열림 처리 추가)
+- **신규 기능**: 항목 우측에 ▲/▼ 버튼 추가 — 드래그 없이 한 칸씩 위/아래로 이동 가능 (같은 뎁스·같은 부모 내에서만 이동)
+- **UX 개선**: 저장·항목 추가·구분선·초기화 버튼을 상단 헤더 우측으로 이동 (이전 사이드바 컬럼 제거, 화면 공간 확보)
+- **UX 개선**: 항목을 다른 뎁스로 이동(드래그, 들여쓰기/내보내기)하면 하위 메뉴를 자동 접힘 처리 (기존에는 이동 후 하위 메뉴가 전부 펼쳐졌음)
 
 ### v1.0.8 (2026-04-23)
 - **버그 수정**: 2뎁스·3뎁스로 이동한 메뉴 클릭 시 프론트 404 에러 수정 (서브메뉴 URL `admin.php?page=` 정규화)

@@ -32,29 +32,7 @@ function he_sorts_page_editor() {
 					<span class="he-sorts-version">v<?php echo esc_html( HE_SORTS_VERSION ); ?></span>
 				</div>
 			</div>
-		</div>
-
-		<!-- 알림 토스트 -->
-		<div id="he-sorts-toast" class="he-sorts-toast" aria-live="polite"></div>
-
-		<!-- 본문: 트리 | 버튼 사이드바 | 속성 패널 -->
-		<div class="he-sorts-body">
-
-			<!-- 좌: 메뉴 트리 -->
-			<div class="he-sorts-tree-panel">
-				<div class="he-sorts-tree" id="he-sorts-tree">
-					<div class="he-sorts-flat-list" id="tree-root">
-						<?php he_sorts_render_flat( $flat ); ?>
-					</div>
-				</div>
-			</div>
-
-			<!-- 중: 버튼 사이드바 -->
-			<div class="he-sorts-sidebar">
-				<button id="he-sorts-save" class="he-sorts-btn he-sorts-btn--primary">
-					<span class="dashicons dashicons-cloud-saved"></span>
-					<span>저장</span>
-				</button>
+			<div class="he-sorts-header-right">
 				<button id="he-sorts-add-item" class="he-sorts-btn he-sorts-btn--secondary">
 					<span class="dashicons dashicons-plus-alt2"></span>
 					<span>항목 추가</span>
@@ -67,6 +45,26 @@ function he_sorts_page_editor() {
 					<span class="dashicons dashicons-image-rotate"></span>
 					<span>초기화</span>
 				</button>
+				<button id="he-sorts-save" class="he-sorts-btn he-sorts-btn--primary">
+					<span class="dashicons dashicons-cloud-saved"></span>
+					<span>저장</span>
+				</button>
+			</div>
+		</div>
+
+		<!-- 알림 토스트 -->
+		<div id="he-sorts-toast" class="he-sorts-toast" aria-live="polite"></div>
+
+		<!-- 본문: 트리 | 속성 패널 -->
+		<div class="he-sorts-body">
+
+			<!-- 좌: 메뉴 트리 -->
+			<div class="he-sorts-tree-panel">
+				<div class="he-sorts-tree" id="he-sorts-tree">
+					<div class="he-sorts-flat-list" id="tree-root">
+						<?php he_sorts_render_flat( $flat ); ?>
+					</div>
+				</div>
 			</div>
 
 			<!-- 우: 속성 패널 -->
@@ -290,6 +288,8 @@ function he_sorts_render_flat( $items ) {
 				. '<span class="he-sorts-drag-handle dashicons dashicons-move"></span>'
 				. '<span class="hs-sep-line"></span>'
 				. '<div class="he-sorts-item-actions">'
+				. '<button class="he-sorts-action-btn he-sorts-move-up" title="위로"><span class="dashicons dashicons-arrow-up-alt2"></span></button>'
+				. '<button class="he-sorts-action-btn he-sorts-move-down" title="아래로"><span class="dashicons dashicons-arrow-down-alt2"></span></button>'
 				. '<button class="he-sorts-action-btn he-sorts-toggle-visibility" data-hidden="' . $hidden . '" title="숨기기">'
 				. '<span class="dashicons ' . ( ! empty( $item['hidden'] ) ? 'dashicons-hidden' : 'dashicons-visibility' ) . '"></span>'
 				. '</button>'
@@ -335,6 +335,8 @@ function he_sorts_render_flat( $items ) {
 		}
 
 		echo '<div class="he-sorts-item-actions">';
+		echo '<button class="he-sorts-action-btn he-sorts-move-up" title="위로"><span class="dashicons dashicons-arrow-up-alt2"></span></button>';
+		echo '<button class="he-sorts-action-btn he-sorts-move-down" title="아래로"><span class="dashicons dashicons-arrow-down-alt2"></span></button>';
 		if ( $depth < 3 ) {
 			echo '<button class="he-sorts-action-btn he-sorts-indent" title="하위로"><span class="dashicons dashicons-arrow-right-alt"></span></button>';
 		}
