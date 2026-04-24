@@ -89,6 +89,10 @@
 
 	// ── 초기화 ──────────────────────────────────────────────────
 	function init() {
+		// WP 관리자바 실제 높이를 CSS 변수로 주입 (sticky top 계산용)
+		var adminBarH = (document.getElementById('wpadminbar') || {offsetHeight: 32}).offsetHeight;
+		document.documentElement.style.setProperty('--wp-admin-bar-h', adminBarH + 'px');
+
 		initSortable();
 		bindEvents();
 	}
@@ -151,12 +155,17 @@
 					el.className = el.className.replace(/\bhs-d\d\b/, 'hs-d' + dragTargetDepth);
 					updateDepthButtons(el, dragTargetDepth);
 					adjustDescendantsDepth(el, delta);
-					relocateDescendants(el);
 				}
 
-				// ── 이동 후 항상 자동 접힘 (새 부모 아래에 하위가 펼쳐지는 현상 방지) ──
+				// delta=0 이어도 항상 자식 재배치: 드래그로 위치만 바뀐 경우에도 자식이 따라오게 함
+				relocateDescendants(el);
+
+				// ── 이동 후 항상 자동 접힘 ──
 				collapseAfterMove(el);
 
+				// 이동된 항목 자신의 parentId 를 초기화해 recalculateParents 가 DOM 기준으로 재할당하도록 함
+				// (자식들의 parentId 는 유효하면 그대로 보존)
+				el.dataset.parentId = '';
 				recalculateParents();
 				updateToggleButtons();
 				applyAllCollapseStates();
@@ -207,12 +216,16 @@
 
 	/**
 	 * flat list 에서 각 항목의 parent_id 를 재계산합니다.
-	 * 규칙: 자신보다 depth 가 1 작은 직전 항목이 부모.
-	 * 부모를 찾지 못하면 depth 를 강제 감소합니다.
+	 *
+	 * ■ 핵심 전략:
+	 *   · 기존 parentId 가 "유효"(부모 항목이 존재하고 depth 가 depth-1)이면 그대로 유지합니다.
+	 *     → 다른 항목이 parent 와 children 사이에 끼어들어도 children 의 parentId 를 보존합니다.
+	 *   · parentId 가 비어있거나 무효하면 DOM 순서 기준으로 직전 depth-1 항목을 새로 할당합니다.
+	 *     → 항목을 이동할 때 이동된 항목 자신만 parentId = '' 로 초기화하면 올바른 부모를 찾습니다.
+	 *   · 유효한 부모를 찾지 못하면 depth 를 1 감소합니다.
 	 */
 	function recalculateParents() {
 		var items = Array.from(document.querySelectorAll('#tree-root > .he-sorts-item'));
-		// id → el 맵
 		var idMap = {};
 		items.forEach(function (el) { idMap[el.dataset.id] = el; });
 
@@ -223,14 +236,14 @@
 				return;
 			}
 
-			// ▶ 기존 parent_id 가 여전히 유효한지 먼저 확인 (불필요한 재배정 방지)
+			// ① 기존 parentId 가 유효하면 그대로 유지
 			var curParentId = el.dataset.parentId || '';
 			if (curParentId && idMap[curParentId]) {
 				var pDepth = parseInt(idMap[curParentId].dataset.depth || '1', 10);
 				if (pDepth === depth - 1) return; // 유효 → 그대로
 			}
 
-			// 유효하지 않으면 역방향으로 depth-1 인 선행 항목 탐색
+			// ② 무효하면 DOM 순서로 직전 depth-1 항목 탐색
 			for (var i = idx - 1; i >= 0; i--) {
 				var prev      = items[i];
 				var prevDepth = parseInt(prev.dataset.depth || '1', 10);
@@ -240,7 +253,8 @@
 				}
 				if (prevDepth < depth - 1) break;
 			}
-			// 유효한 부모 없음 → depth 줄이기
+
+			// ③ 유효한 부모 없음 → depth 줄이기
 			var newD = depth - 1;
 			el.dataset.depth = String(newD);
 			el.className = el.className.replace(/\bhs-d\d\b/, 'hs-d' + newD);
@@ -359,13 +373,21 @@
 
 	/**
 	 * 트리 전체를 스캔해 자식이 있는 d1 항목에 토글 버튼을 추가/제거합니다.
+	 * depth != 1 항목의 토글 버튼도 제거합니다 (d1→d2+ 이동 후 잔존 버튼 정리).
 	 * 드래그·인덴트 조작 후 호출하세요.
 	 */
 	function updateToggleButtons() {
 		document.querySelectorAll('#tree-root > .he-sorts-item').forEach(function (el) {
-			if (parseInt(el.dataset.depth || '1', 10) !== 1) return;
-			var hasKids  = hasChildItems(el);
+			var depth    = parseInt(el.dataset.depth || '1', 10);
 			var existing = el.querySelector('.hs-toggle-btn');
+
+			// depth != 1 항목은 토글 버튼 불필요 → 잔존 버튼 제거
+			if (depth !== 1) {
+				if (existing) existing.remove();
+				return;
+			}
+
+			var hasKids = hasChildItems(el);
 
 			if (hasKids && !existing) {
 				var id        = el.dataset.id;
@@ -464,6 +486,8 @@
 				return;
 			}
 			if (!e.target.closest('.he-sorts-item-actions') && !e.target.closest('.he-sorts-drag-handle')) {
+				// 구분선은 속성 패널 열지 않음
+				if (item.dataset.type === 'separator') return;
 				selectItem(item);
 			}
 		});
@@ -577,6 +601,7 @@
 		relocateDescendants(item);
 
 		collapseAfterMove(item);
+		item.dataset.parentId = ''; // 이동된 항목 parentId 초기화 → DOM 기준 재할당
 		recalculateParents();
 		updateToggleButtons();
 		applyAllCollapseStates();
@@ -597,6 +622,7 @@
 		relocateDescendants(item);
 
 		collapseAfterMove(item);
+		item.dataset.parentId = ''; // 이동된 항목 parentId 초기화 → DOM 기준 재할당
 		recalculateParents();
 		updateToggleButtons();
 		applyAllCollapseStates();
@@ -637,9 +663,11 @@
 
 	// ── 뎁스 변경 후 자동 접힘 ──────────────────────────────────
 	/**
-	 * 항목의 뎁스가 바뀌었을 때 호출합니다.
+	 * 항목이 이동됐을 때 호출합니다.
 	 * - 이동된 항목이 d1 이면 자신을 collapsedState 에 등록합니다.
-	 * - 이동된 항목이 d2+ 이면 직상위 d1 조상을 접힘으로 설정합니다.
+	 * - 이동된 항목이 d2+ 이면:
+	 *   · 자신의 collapsedState 를 삭제합니다 (d1→d2로 이동 시 잔존 상태 제거).
+	 *   · 직상위 d1 조상을 접힘으로 설정합니다.
 	 * applyAllCollapseStates() 보다 먼저 호출하세요.
 	 */
 	function collapseAfterMove(el) {
@@ -649,6 +677,8 @@
 				collapsedState[el.dataset.id] = true;
 			}
 		} else {
+			// d1→d2+ 로 이동된 경우 자신의 collapsed 상태 정리
+			delete collapsedState[el.dataset.id];
 			var d1Anc = findD1AncestorInDOM(el);
 			if (d1Anc) {
 				collapsedState[d1Anc.dataset.id] = true;
@@ -736,6 +766,7 @@
 			root.insertBefore(node, anchor);
 		});
 
+		el.dataset.parentId = ''; // 이동된 항목 parentId 초기화 → DOM 기준 재할당
 		recalculateParents();
 		updateToggleButtons();
 		applyAllCollapseStates();
@@ -757,6 +788,7 @@
 			root.insertBefore(node, refNode);
 		});
 
+		el.dataset.parentId = ''; // 이동된 항목 parentId 초기화 → DOM 기준 재할당
 		recalculateParents();
 		updateToggleButtons();
 		applyAllCollapseStates();
@@ -833,13 +865,22 @@
 	// ── 항목 삭제 ────────────────────────────────────────────────
 	function handlePropsDelete() {
 		if (!selectedItem) return;
-		if (!confirm(i18n.confirmDelete)) return;
 
-		selectedItem.remove();
+		var block      = getItemBlock(selectedItem);
+		var childCount = block.length - 1; // 본인 제외 하위 항목 수
+
+		var msg = childCount > 0
+			? '이 항목과 하위 항목 ' + childCount + '개가 모두 삭제됩니다. 계속하시겠습니까?'
+			: i18n.confirmDelete;
+
+		if (!confirm(msg)) return;
+
+		block.forEach(function (node) { node.remove(); });
 		selectedItem = null;
 		document.getElementById('props-empty').style.display = '';
 		document.getElementById('props-form').style.display  = 'none';
 		recalculateParents();
+		updateToggleButtons();
 		showToast('항목이 삭제되었습니다.');
 	}
 
@@ -940,9 +981,16 @@
 		if (!url)   { document.getElementById('modal-url').focus();   return; }
 
 		var parentId = null;
-		if (depth === 2 && selectedItem) {
-			var selDepth = parseInt(selectedItem.dataset.depth || '1', 10);
-			parentId = selDepth === 1 ? selectedItem.dataset.id : (selectedItem.dataset.parentId || null);
+		if (depth === 2) {
+			if (!selectedItem || selectedItem.dataset.type === 'separator') {
+				// 선택된 항목이 없거나 구분선이면 depth를 1로 강제
+				depth = 1;
+				document.getElementById('modal-depth').value = '1';
+				showToast('상위 메뉴를 먼저 선택해야 2뎁스로 추가할 수 있습니다. 1뎁스로 추가합니다.', 'error');
+			} else {
+				var selDepth = parseInt(selectedItem.dataset.depth || '1', 10);
+				parentId = selDepth === 1 ? selectedItem.dataset.id : (selectedItem.dataset.parentId || null);
+			}
 		}
 
 		fetch(heSortsData.ajaxUrl, {

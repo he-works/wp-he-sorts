@@ -249,12 +249,17 @@ class HE_Sorts_Admin {
 				continue;
 			}
 
+			// wp_slug / parent_id: null 은 null 로 보존해야 find_sub_entry() 가 올바르게 동작함.
+			// isset() 은 null 에도 true 를 반환하므로 명시적으로 null 체크합니다.
+			$raw_wp_slug   = $item['wp_slug']   ?? null;
+			$raw_parent_id = $item['parent_id'] ?? null;
+
 			$clean = array(
 				'id'        => sanitize_text_field( $item['id'] ?? '' ),
 				'type'      => in_array( $item['type'] ?? '', array( 'original', 'custom', 'separator' ), true ) ? $item['type'] : 'original',
 				'depth'     => min( 3, max( 1, intval( $item['depth'] ?? 1 ) ) ),
-				'wp_slug'   => isset( $item['wp_slug'] ) ? sanitize_text_field( $item['wp_slug'] ) : null,
-				'parent_id' => isset( $item['parent_id'] ) ? sanitize_text_field( $item['parent_id'] ) : null,
+				'wp_slug'   => ( $raw_wp_slug !== null && $raw_wp_slug !== '' ) ? sanitize_text_field( $raw_wp_slug ) : null,
+				'parent_id' => ( $raw_parent_id !== null && $raw_parent_id !== '' ) ? sanitize_text_field( $raw_parent_id ) : null,
 				'label'     => sanitize_text_field( $item['label'] ?? '' ),
 				'hidden'    => ! empty( $item['hidden'] ),
 			);

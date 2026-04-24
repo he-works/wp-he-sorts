@@ -31,12 +31,44 @@
 	--hs-t: 150ms ease;
 }
 
+/* ── 에디터 페이지 전체 높이 레이아웃 ─────────────────────── */
+/* calc(100vh - Npx) 대신 flex-chain 으로 남은 뷰포트를 정확히 채웁니다. */
+body.toplevel_page_he-sorts #wpwrap {
+	display: flex;
+	flex-direction: column;
+	height: 100vh;
+}
+body.toplevel_page_he-sorts #wpcontent,
+body.toplevel_page_he-sorts #wpbody,
+body.toplevel_page_he-sorts #wpbody-content {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+body.toplevel_page_he-sorts #wpbody-content {
+	padding-bottom: 0;
+}
+body.toplevel_page_he-sorts .wrap {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	padding-bottom: 0;
+	margin-top: 0;
+	margin-bottom: 0;
+}
+
 /* ── 전체 레이아웃 ─────────────────────────────────────────── */
 .he-sorts-wrap {
 	margin: 0 !important;
 	padding: 0;
 	background: var(--hs-gray-50);
-	min-height: 100vh;
+	/* min-height: 100vh 제거 → flex: 1 로 부모 높이를 채움 */
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
 	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
@@ -49,10 +81,11 @@
 	background: var(--hs-white);
 	border-bottom: 1px solid var(--hs-gray-200);
 	position: sticky;
-	top: 32px;
+	top: var(--wp-admin-bar-h, 32px); /* JS로 실제 관리자바 높이 주입 */
 	z-index: 100;
 	box-shadow: var(--hs-shadow-sm);
 	gap: 12px;
+	flex-shrink: 0;
 }
 
 .he-sorts-header-left {
@@ -171,7 +204,9 @@
 .he-sorts-body {
 	display: grid;
 	grid-template-columns: 300px 1fr;
-	height: calc(100vh - 73px);   /* 헤더(~41px) + WP 어드민바(32px) */
+	/* height: calc(100vh - 73px) 제거 → flex: 1 로 헤더 아래 남은 공간을 정확히 채움 */
+	flex: 1;
+	min-height: 0;
 	overflow: hidden;
 }
 

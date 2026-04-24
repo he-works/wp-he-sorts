@@ -2,7 +2,7 @@
 
 > WordPress 관리자 메뉴를 자유롭게 정렬·편집할 수 있는 플러그인
 
-![Version](https://img.shields.io/badge/version-1.0.10-blue) ![WordPress](https://img.shields.io/badge/WordPress-5.0%2B-21759b) ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4) ![License](https://img.shields.io/badge/license-GPL--2.0-green)
+![Version](https://img.shields.io/badge/version-1.0.14-blue) ![WordPress](https://img.shields.io/badge/WordPress-5.0%2B-21759b) ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4) ![License](https://img.shields.io/badge/license-GPL--2.0-green)
 
 ---
 
@@ -110,6 +110,27 @@
 ---
 
 ## 변경 이력
+
+### v1.0.14 (2026-04-23)
+- **버그 수정**: 1뎁스 항목(하위 메뉴 포함)을 2뎁스로 이동 후 다시 1뎁스로 꺼낼 때 하위 항목이 함께 따라오지 않고 기존 부모 아래에 남아있던 문제 수정 — `recalculateParents()` 를 "유효한 `parentId` 유지 + 이동한 항목만 DOM 재탐색" 하이브리드 방식으로 수정
+- **버그 수정**: 초기화(reset) 후 에디터 메뉴 텍스트 옆에 `</span>` 문자가 출력되던 문제 수정 — `strip_menu_badge()` 를 중첩 `<span>` 처리가 가능한 `strip_tags()` 방식으로 변경
+
+### v1.0.13 (2026-04-23)
+- **버그 수정**: 부모 항목 삭제 시 자식 항목이 고아로 남아 depth 가 강제 감소되던 문제 수정 — 삭제 시 하위 항목 전체(block)를 함께 제거하고 하위 항목 수를 confirm 메시지에 표시
+- **UX 개선**: 에디터 높이를 `calc(100vh - 73px)` 고정값 대신 flex-chain(`#wpwrap → .wrap → .he-sorts-wrap → .he-sorts-body`) 으로 계산 — WP 버전·테마별 관리자바 높이 차이 대응
+- **UX 개선**: WP 관리자바 실제 높이를 JS 로 읽어 `--wp-admin-bar-h` CSS 변수로 주입 — 헤더 sticky top 이 정확하게 적용됨
+
+### v1.0.12 (2026-04-23)
+- **버그 수정**: `recalculateParents()` — 기존 `parentId`가 유효해 보여도 DOM 순서가 바뀐 경우 잘못된 부모를 유지하던 문제 수정 (항상 DOM 순서 기준으로 직전 depth-1 항목을 새로 탐색)
+- **버그 수정**: 구분선(separator) 클릭 시 빈 속성 패널이 열리던 문제 수정 (구분선은 `selectItem()` 호출 차단)
+- **버그 수정**: 2뎁스 커스텀 메뉴 추가 시 상위 항목이 선택되지 않은 상태에서 추가하면 `parentId`/`depth` 불일치 발생하던 문제 수정 (선택 없으면 자동으로 1뎁스로 전환 + 안내 메시지)
+- **버그 수정**: PHP `sanitize_config()` 에서 `wp_slug`/`parent_id` 값이 `null`인 경우 `isset(null) === true`로 인해 `sanitize_text_field(null)`이 빈 문자열 `""`을 반환하던 문제 수정 (명시적 null 체크로 변경)
+
+### v1.0.11 (2026-04-23)
+- **버그 수정**: 드래그로 항목을 이동할 때 하위 메뉴가 따라오지 않던 문제 수정 (depth 변경 없는 이동 시에도 `relocateDescendants` 항상 호출)
+- **버그 수정**: 1뎁스 항목을 2뎁스로 이동 시 하위 메뉴가 전부 열려 보이고 토글 화살표가 작동하지 않던 문제 수정 (depth≠1 항목의 잔존 토글 버튼 제거, `collapsedState` 정리 추가)
+- **버그 수정**: `duplicate_page_settings` 등 원래 1뎁스였던 메뉴를 2뎁스로 이동 시 권한 오류 수정 (`$_parent_pages` 업데이트 + 훅 위임 패치를 depth 2·3 전체로 확장)
+- **버그 수정**: `googlesitekit-settings` 등 3뎁스 메뉴 빈 화면 문제 추가 개선 (`patch_registered_pages`로 통합, `$_parent_pages` 올바르게 업데이트)
 
 ### v1.0.10 (2026-04-23)
 - **버그 수정**: 3뎁스 메뉴 접근 시 권한 오류 수정 — `$_registered_pages` 훅 이름 불일치 패치 (`patch_depth3_registered_pages()`)

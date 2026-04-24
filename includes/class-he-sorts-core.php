@@ -104,69 +104,107 @@ class HE_Sorts_Core {
 		$submenu = $new_sub;
 		ksort( $menu );
 
-		// depth-3 항목 권한 패치
-		$this->patch_depth3_registered_pages( $items );
+		// 서브메뉴 항목 $_parent_pages 업데이트 + 권한 패치
+		$this->patch_registered_pages( $items, $new_sub );
 	}
 
 	/**
-	 * WordPress 권한 오류 수정 (depth-3 항목 전용)
+	 * 서브메뉴 항목의 $_parent_pages 업데이트 + 권한 패치 (depth 2·3 전체)
 	 *
 	 * 문제 원인:
-	 *   admin.php 에서 $_parent_pages[$plugin_page] 값이 '.php' 를 포함하지 않으면
-	 *   (예: 'googlesitekit', 'hbu') 훅 이름 계산에 'admin.php' 를 부모로 사용합니다.
-	 *   이 때 계산된 훅 이름이 플러그인이 원래 등록한 훅 이름과 달라
-	 *   $_registered_pages 확인이 실패하고 "권한 없음" 오류가 발생합니다.
+	 *   HE SORTS 는 $submenu 를 직접 조작하지만 $_parent_pages 는 건드리지 않습니다.
+	 *   WordPress admin.php 는 $_parent_pages[$plugin_page] 를 기반으로 훅 이름을 계산하므로
+	 *   값이 낡아있으면 $_registered_pages 확인이 실패해 "권한 없음" 오류가 납니다.
+	 *
+	 *   추가로, 부모 slug 가 '.php' 를 포함하지 않는 경우(예: 'googlesitekit', 'hbu')
+	 *   WordPress 가 훅 이름을 admin.php 기준으로 잘못 계산합니다.
 	 *
 	 * 해결:
-	 *   잘못된 훅 이름을 $_registered_pages 에 추가하고,
-	 *   해당 훅이 실행될 때 원래 훅으로 위임하는 액션을 등록합니다.
+	 *   1. $_parent_pages[$slug] 를 실제 새 부모 slug 로 업데이트합니다.
+	 *   2. 새로 계산된 훅 이름과 원래 훅 이름이 다르면 alias 를 추가합니다.
+	 *
+	 * @param array $items   저장된 config items
+	 * @param array $new_sub 재구성된 $submenu 배열 (sub_key => [entry, ...])
 	 */
-	private function patch_depth3_registered_pages( $items ) {
-		global $_registered_pages;
+	private function patch_registered_pages( $items, $new_sub ) {
+		global $_registered_pages, $_parent_pages;
 
 		if ( ! function_exists( 'get_plugin_page_hookname' ) ) {
 			return;
 		}
 
-		foreach ( $items as $item ) {
-			if ( ( $item['depth'] ?? 1 ) < 3 )         continue;
-			if ( ( $item['type'] ?? '' ) === 'custom' ) continue;
-			if ( ! empty( $item['hidden'] ) )           continue;
+		// sub_key 역인덱스: slug → sub_key (새 부모 slug)
+		$slug_to_parent = array();
+		foreach ( $new_sub as $sub_key => $entries ) {
+			if ( ! is_array( $entries ) ) continue;
+			foreach ( $entries as $entry ) {
+				$entry_slug = $entry[2] ?? '';
+				if ( $entry_slug && ! isset( $slug_to_parent[ $entry_slug ] ) ) {
+					$slug_to_parent[ $entry_slug ] = $sub_key;
+				}
+			}
+		}
 
-			$slug        = $item['wp_slug'] ?? '';
+		foreach ( $items as $item ) {
+			$depth = $item['depth'] ?? 1;
+			if ( $depth < 2 )                              continue;
+			if ( ( $item['type'] ?? '' ) === 'custom' )    continue;
+			if ( ( $item['type'] ?? '' ) === 'separator' ) continue;
+			if ( ! empty( $item['hidden'] ) )              continue;
+
+			$slug = $item['wp_slug'] ?? '';
+			if ( ! $slug ) continue;
+
+			// ── 새 부모 slug 결정 ────────────────────────────────────────
+			$new_parent = $slug_to_parent[ $slug ] ?? null;
+			if ( ! $new_parent ) continue;
+
+			// $_parent_pages 업데이트 (admin.php 가 올바른 부모를 보도록)
+			$_parent_pages[ $slug ] = $new_parent;
+
+			// ── 훅 이름 비교 ─────────────────────────────────────────────
+			// WordPress 가 $_parent_pages 업데이트 후 계산할 훅 이름
+			$new_hook = get_plugin_page_hookname( $slug, $new_parent );
+
+			// 원래 플러그인이 등록한 훅 이름 (id 접두사로 구분)
 			$id_parts    = explode( '::', $item['id'] ?? '', 3 );
+			$id_prefix   = $id_parts[0] ?? '';
 			$orig_parent = $id_parts[1] ?? '';
 
-			if ( ! $slug || ! $orig_parent ) continue;
-
-			// WordPress admin.php 가 실제로 계산할 (잘못된) 훅 이름
-			$wrong_hook   = get_plugin_page_hookname( $slug, 'admin.php' );
-			// 플러그인이 원래 등록한 (올바른) 훅 이름
-			$correct_hook = get_plugin_page_hookname( $slug, $orig_parent );
-
-			if ( $wrong_hook === $correct_hook ) continue; // 이미 일치, 패치 불필요
-
-			// 잘못된 훅 이름을 접근 가능으로 등록
-			if ( empty( $_registered_pages[ $wrong_hook ] ) ) {
-				$_registered_pages[ $wrong_hook ] = true;
+			if ( $id_prefix === 'menu' ) {
+				// 원래 1뎁스 메뉴 → 부모 없이 등록됨
+				$orig_hook = get_plugin_page_hookname( $slug, '' );
+			} else {
+				// 원래 서브메뉴 항목
+				$orig_hook = $orig_parent ? get_plugin_page_hookname( $slug, $orig_parent ) : $new_hook;
 			}
 
-			// 잘못된 훅 → 올바른 훅으로 위임 (사전 로딩 + 페이지 출력 모두)
-			if ( ! has_action( 'load-' . $wrong_hook ) ) {
-				add_action(
-					'load-' . $wrong_hook,
-					static function () use ( $correct_hook ) {
-						do_action( 'load-' . $correct_hook );
-					}
-				);
+			// 일치하면 패치 불필요
+			if ( $new_hook === $orig_hook ) continue;
+
+			// 새 훅을 $_registered_pages 에 등록 (원래 훅이 등록된 경우에만)
+			if ( ! empty( $_registered_pages[ $orig_hook ] ) && empty( $_registered_pages[ $new_hook ] ) ) {
+				$_registered_pages[ $new_hook ] = true;
 			}
-			if ( ! has_action( $wrong_hook ) ) {
-				add_action(
-					$wrong_hook,
-					static function () use ( $correct_hook ) {
-						do_action( $correct_hook );
-					}
-				);
+
+			// 새 훅 → 원래 훅으로 위임 (load + 출력)
+			if ( ! empty( $_registered_pages[ $orig_hook ] ) ) {
+				if ( ! has_action( 'load-' . $new_hook ) ) {
+					add_action(
+						'load-' . $new_hook,
+						static function () use ( $orig_hook ) {
+							do_action( 'load-' . $orig_hook );
+						}
+					);
+				}
+				if ( ! has_action( $new_hook ) ) {
+					add_action(
+						$new_hook,
+						static function () use ( $orig_hook ) {
+							do_action( $orig_hook );
+						}
+					);
+				}
 			}
 		}
 	}
@@ -418,6 +456,8 @@ class HE_Sorts_Core {
 	}
 
 	public static function strip_menu_badge( $label ) {
-		return trim( preg_replace( '/<span[^>]*>.*?<\/span>/s', '', $label ) );
+		// <span> 중첩 구조(예: badge 안에 또 다른 span)를 완전히 제거합니다.
+		// preg_replace 단발로는 외부 </span> 이 남아있는 경우가 있으므로 strip_tags 를 사용합니다.
+		return trim( strip_tags( $label ) );
 	}
 }
