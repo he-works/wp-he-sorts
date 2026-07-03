@@ -2,7 +2,7 @@
 
 > WordPress 관리자 메뉴를 자유롭게 정렬·편집할 수 있는 플러그인
 
-![Version](https://img.shields.io/badge/version-1.0.14-blue) ![WordPress](https://img.shields.io/badge/WordPress-5.0%2B-21759b) ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4) ![License](https://img.shields.io/badge/license-GPL--2.0-green)
+![Version](https://img.shields.io/badge/version-1.0.15-blue) ![WordPress](https://img.shields.io/badge/WordPress-5.0%2B-21759b) ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4) ![License](https://img.shields.io/badge/license-GPL--2.0-green)
 
 ---
 
@@ -110,6 +110,11 @@
 ---
 
 ## 변경 이력
+
+### v1.0.15 (2026-07-03)
+- **버그 수정(핵심)**: 에디터 페이지 CSS 가 `#wpwrap`(워드프레스 좌측 관리자 메뉴 + 본문을 함께 감싸는 컨테이너)을 `display:flex; flex-direction:column`으로 바꾸던 문제 수정. 이로 인해 좌측 관리자 메뉴가 워드프레스 자체 위치 계산 스크립트와 충돌해 화면 맨 아래로 밀려나고, 편집 화면은 대부분 빈 여백으로 보이는 문제가 발생했음. `#wpwrap`/`#wpcontent`/`#wpbody` 는 더 이상 건드리지 않고, HE SORTS 자신의 래퍼(`.he-sorts-wrap`)에만 `calc(100vh - 관리자바 높이)` 로 높이를 직접 계산해 적용하도록 변경
+- **버그 수정**: 에디터 화면에서 사용하던 SortableJS 를 외부 CDN(jsdelivr) 대신 플러그인 내장 파일(`assets/js/vendor/sortable.min.js`)로 변경 — 외부 스크립트 차단 환경에서도 안전하게 동작하도록 방어
+- **안정성**: SortableJS 로드에 실패해도 나머지 버튼·입력 등 에디터 기능은 정상 동작하도록 초기화 로직 분리 (`initSortable()` 실패를 `try/catch` 로 격리)
 
 ### v1.0.14 (2026-04-23)
 - **버그 수정**: 1뎁스 항목(하위 메뉴 포함)을 2뎁스로 이동 후 다시 1뎁스로 꺼낼 때 하위 항목이 함께 따라오지 않고 기존 부모 아래에 남아있던 문제 수정 — `recalculateParents()` 를 "유효한 `parentId` 유지 + 이동한 항목만 DOM 재탐색" 하이브리드 방식으로 수정

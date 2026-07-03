@@ -93,12 +93,23 @@
 		var adminBarH = (document.getElementById('wpadminbar') || {offsetHeight: 32}).offsetHeight;
 		document.documentElement.style.setProperty('--wp-admin-bar-h', adminBarH + 'px');
 
-		initSortable();
+		// SortableJS 로드 실패(CDN 차단, 네트워크 오류 등) 시에도
+		// 나머지 버튼/입력 등은 정상 동작하도록 분리 처리합니다.
+		try {
+			initSortable();
+		} catch (e) {
+			console.error('HE SORTS: SortableJS 초기화 실패 — 드래그 정렬만 비활성화됩니다.', e);
+		}
 		bindEvents();
 	}
 
 	// ── SortableJS (단일 플랫 리스트 + depth 드래그) ──────────────
 	function initSortable() {
+		if (typeof Sortable === 'undefined') {
+			console.error('HE SORTS: SortableJS 스크립트를 불러오지 못했습니다. 드래그 정렬 기능을 사용할 수 없습니다.');
+			return;
+		}
+
 		if (sortable) sortable.destroy();
 		var root = document.getElementById('tree-root');
 		if (!root) return;

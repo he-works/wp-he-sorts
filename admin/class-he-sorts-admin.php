@@ -67,10 +67,12 @@ class HE_Sorts_Admin {
 			HE_SORTS_VERSION
 		);
 
-		// SortableJS CDN
+		// SortableJS: 외부 CDN 대신 플러그인 내장 파일 사용
+		// (사이트 방화벽·보안 플러그인의 CSP·광고 차단기 등으로 외부 CDN이
+		//  차단되면 에디터 JS 전체가 초기화되지 않아 화면이 깨져 보이는 문제 방지)
 		wp_enqueue_script(
 			'sortablejs',
-			'https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js',
+			HE_SORTS_PLUGIN_URL . 'assets/js/vendor/sortable.min.js',
 			array(),
 			'1.15.2',
 			true

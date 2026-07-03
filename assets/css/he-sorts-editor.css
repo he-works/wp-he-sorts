@@ -32,28 +32,17 @@
 }
 
 /* ── 에디터 페이지 전체 높이 레이아웃 ─────────────────────── */
-/* calc(100vh - Npx) 대신 flex-chain 으로 남은 뷰포트를 정확히 채웁니다. */
-body.toplevel_page_he-sorts #wpwrap {
-	display: flex;
-	flex-direction: column;
-	height: 100vh;
-}
-body.toplevel_page_he-sorts #wpcontent,
-body.toplevel_page_he-sorts #wpbody,
-body.toplevel_page_he-sorts #wpbody-content {
-	flex: 1;
-	display: flex;
-	flex-direction: column;
-	min-height: 0;
-}
+/* 주의: #wpwrap 은 WordPress 좌측 관리자 메뉴(#adminmenu)와 본문(#wpcontent)을
+   함께 감싸는 컨테이너입니다. 여기에 display:flex; flex-direction:column 을
+   적용하면 원래 나란히 배치되어야 할 좌측 메뉴가 세로로 밀려나면서
+   WordPress 자체의 메뉴 위치 계산 스크립트와 충돌해 관리자 메뉴가
+   화면 하단으로 밀려나는 등 레이아웃 전체가 깨집니다.
+   따라서 #wpwrap/#wpcontent/#wpbody 는 건드리지 않고, HE SORTS 자신의
+   래퍼(.he-sorts-wrap)에만 실제 뷰포트 높이를 계산해 적용합니다. */
 body.toplevel_page_he-sorts #wpbody-content {
 	padding-bottom: 0;
 }
-body.toplevel_page_he-sorts .wrap {
-	flex: 1;
-	display: flex;
-	flex-direction: column;
-	min-height: 0;
+body.toplevel_page_he-sorts .wrap.he-sorts-wrap {
 	padding-bottom: 0;
 	margin-top: 0;
 	margin-bottom: 0;
@@ -64,9 +53,11 @@ body.toplevel_page_he-sorts .wrap {
 	margin: 0 !important;
 	padding: 0;
 	background: var(--hs-gray-50);
-	/* min-height: 100vh 제거 → flex: 1 로 부모 높이를 채움 */
-	flex: 1;
-	min-height: 0;
+	/* #wpwrap 을 flex 로 바꾸지 않으므로, 이 래퍼 자신의 높이를
+	   "뷰포트 - 관리자바 높이" 로 직접 계산합니다.
+	   --wp-admin-bar-h 는 he-sorts-editor.js 의 init() 에서 실제
+	   #wpadminbar 높이를 읽어 주입합니다. */
+	height: calc(100vh - var(--wp-admin-bar-h, 32px));
 	display: flex;
 	flex-direction: column;
 	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
