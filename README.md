@@ -2,7 +2,7 @@
 
 > WordPress 관리자 메뉴를 자유롭게 정렬·편집할 수 있는 플러그인
 
-![Version](https://img.shields.io/badge/version-1.0.15-blue) ![WordPress](https://img.shields.io/badge/WordPress-5.0%2B-21759b) ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4) ![License](https://img.shields.io/badge/license-GPL--2.0-green)
+![Version](https://img.shields.io/badge/version-1.0.16-blue) ![WordPress](https://img.shields.io/badge/WordPress-5.0%2B-21759b) ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4) ![License](https://img.shields.io/badge/license-GPL--2.0-green)
 
 ---
 
@@ -110,6 +110,9 @@
 ---
 
 ## 변경 이력
+
+### v1.0.16 (2026-07-03)
+- **버그 수정(치명적)**: 자동 업데이트(GitHub 릴리스 → "지금 업데이트") 진행 시 "Cannot redeclare he_sorts_init()" 치명적 오류로 플러그인이 자동 비활성화되던 문제 수정. GitHub 압축 해제 폴더명(예: `wp-he-sorts-main`)과 실제 설치 폴더명(예: `plugin-HE-SORTS`)이 달라, 워드프레스 코어가 새 파일을 기존 폴더로 옮긴 뒤에도 옛 압축 해제 폴더명을 기준으로 재활성화를 시도하면서 같은 파일이 두 경로에서 동시에 include 되던 것이 원인. `after_install()` 에서 `$result['destination_name']` 도 함께 갱신하도록 수정, 파일 이동 실패 시에도 안전하게 오류를 반환하도록 개선
 
 ### v1.0.15 (2026-07-03)
 - **버그 수정(핵심)**: 에디터 페이지 CSS 가 `#wpwrap`(워드프레스 좌측 관리자 메뉴 + 본문을 함께 감싸는 컨테이너)을 `display:flex; flex-direction:column`으로 바꾸던 문제 수정. 이로 인해 좌측 관리자 메뉴가 워드프레스 자체 위치 계산 스크립트와 충돌해 화면 맨 아래로 밀려나고, 편집 화면은 대부분 빈 여백으로 보이는 문제가 발생했음. `#wpwrap`/`#wpcontent`/`#wpbody` 는 더 이상 건드리지 않고, HE SORTS 자신의 래퍼(`.he-sorts-wrap`)에만 `calc(100vh - 관리자바 높이)` 로 높이를 직접 계산해 적용하도록 변경

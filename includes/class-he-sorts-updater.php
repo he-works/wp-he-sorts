@@ -102,14 +102,29 @@ class HE_Sorts_Updater {
 			);
 		}
 
-		$plugin_folder = WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . dirname( $this->plugin_slug );
+		$plugin_dir_name = dirname( $this->plugin_slug );
+		$plugin_folder   = WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . $plugin_dir_name;
 
 		// 출처와 목적지가 다를 때만 이동 (같으면 이동 불필요 — 이동 시 원본이 삭제됨)
 		if ( trailingslashit( $result['destination'] ) !== trailingslashit( $plugin_folder ) ) {
-			$wp_filesystem->move( $result['destination'], $plugin_folder, true );
+			$moved = $wp_filesystem->move( $result['destination'], $plugin_folder, true );
+
+			if ( ! $moved ) {
+				return new WP_Error(
+					'he_sorts_move_failed',
+					__( '플러그인 파일 이동에 실패했습니다.', 'he-sorts' )
+				);
+			}
 		}
 
-		$result['destination'] = $plugin_folder;
+		// WordPress 코어(Plugin_Upgrader::plugin_info())는 destination_name 을 기준으로
+		// 업데이트 후 재활성화할 플러그인 경로를 다시 계산합니다.
+		// destination 만 바꾸고 destination_name(GitHub 압축 해제 폴더명, 예: repo-main)을
+		// 갱신하지 않으면, 방금 이동시켜 사라진 원래 폴더 경로로 재활성화를 시도하다
+		// 이미 로드된 플러그인과 동일한 함수가 선언된 다른 경로의 파일을 다시 include 하게 되어
+		// "Cannot redeclare he_sorts_init()" 치명적 오류로 활성화가 실패합니다.
+		$result['destination']      = $plugin_folder;
+		$result['destination_name'] = $plugin_dir_name;
 
 		activate_plugin( $this->plugin_slug );
 
